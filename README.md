@@ -1,0 +1,2 @@
+# jellyfin-plugin-copperfox-home
+
