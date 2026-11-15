@@ -88,7 +88,7 @@ public class CopperFoxHomeController : ControllerBase
                 int? episodeCount = item is MediaBrowser.Controller.Entities.TV.Series series
                     ? series.GetEpisodes(user, new DtoOptions(false), false).Count()
                     : null;
-                var userData = _userDataManager.GetUserData(user, item);
+                var backdropCount = item.GetImages(MediaBrowser.Model.Entities.ImageType.Backdrop).Count();
 
                 return new
                 {
@@ -99,12 +99,12 @@ public class CopperFoxHomeController : ControllerBase
                     Genres = item.Genres ?? Array.Empty<string>(),
                     PrimaryImageAspectRatio = 0.6666667,
                     RunTimeTicks = item.RunTimeTicks,
-                    BackdropImageTags = item.BackdropImageTags ?? Array.Empty<string>(),
+                    BackdropImageTags = Enumerable.Range(0, backdropCount).Select(idx => idx.ToString()).ToArray(),
                     UserData = new
                     {
-                        Played = userData.Played,
-                        IsFavorite = userData.IsFavorite,
-                        PlaybackPositionTicks = userData.PlaybackPositionTicks
+                        Played = item.IsPlayed(user, null),
+                        IsFavorite = item.IsFavoriteOrLiked(user, null),
+                        PlaybackPositionTicks = 0L
                     },
                     IsDiscover = string.Equals(rowDef.Scope, "DiscoverOnly", StringComparison.OrdinalIgnoreCase),
                     ChildCount = childCount,
