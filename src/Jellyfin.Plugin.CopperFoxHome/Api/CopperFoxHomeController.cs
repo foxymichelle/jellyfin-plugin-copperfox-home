@@ -162,15 +162,31 @@ public class CopperFoxHomeController : ControllerBase
 
         if (string.Equals(rowDef.RowType, "BecauseYouWatched", StringComparison.OrdinalIgnoreCase))
         {
-            var lastWatchedQuery = new InternalItemsQuery(user)
+            var historyQuery = new InternalItemsQuery(user)
             {
                 Recursive = true,
                 IsPlayed = true,
-                IncludeItemTypes = new[] { BaseItemKind.Movie, BaseItemKind.Series, BaseItemKind.Episode },
+                IncludeItemTypes = new[] { BaseItemKind.Movie, BaseItemKind.Episode },
                 OrderBy = new[] { (ItemSortBy.DatePlayed, SortOrder.Descending) },
-                Limit = 15
+                Limit = 20
             };
-            var recent = ApplyScopeFilter(_libraryManager.GetItemList(lastWatchedQuery), "OwnedOnly", discoverLibGuid)
+
+            var candidates = ApplyScopeFilter(_libraryManager.GetItemList(historyQuery), "OwnedOnly", discoverLibGuid).ToList();
+
+            if (candidates.Count == 0)
+            {
+                var resumableQuery = new InternalItemsQuery(user)
+                {
+                    Recursive = true,
+                    IsResumable = true,
+                    IncludeItemTypes = new[] { BaseItemKind.Movie, BaseItemKind.Episode },
+                    OrderBy = new[] { (ItemSortBy.DatePlayed, SortOrder.Descending) },
+                    Limit = 20
+                };
+                candidates = ApplyScopeFilter(_libraryManager.GetItemList(resumableQuery), "OwnedOnly", discoverLibGuid).ToList();
+            }
+
+            var recent = candidates
                 .Select(x => x is MediaBrowser.Controller.Entities.TV.Episode ep ? (BaseItem?)ep.Series : x)
                 .FirstOrDefault(x => x != null && x.Genres != null && x.Genres.Length > 0);
 
@@ -186,7 +202,6 @@ public class CopperFoxHomeController : ControllerBase
             var poolQuery = new InternalItemsQuery(user)
             {
                 Recursive = true,
-                IsPlayed = false,
                 IncludeItemTypes = new[] { recent.GetBaseItemKind() },
                 Genres = recent.Genres,
                 Limit = 250
@@ -265,19 +280,39 @@ public class CopperFoxHomeController : ControllerBase
             {
                 Recursive = true,
                 IncludeItemTypes = new[] { BaseItemKind.BoxSet }
-            });
+            }).OfType<MediaBrowser.Controller.Entities.Movies.BoxSet>().ToList();
 
-            var boxSetById = boxSets.ToDictionary(b => b.Id);
+            var movieIdToBoxSet = new Dictionary<Guid, BaseItem>();
+            var moviePathToBoxSet = new Dictionary<string, BaseItem>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var boxSet in boxSets)
+            {
+                foreach (var child in boxSet.GetLinkedChildren())
+                {
+                    if (child.Id != Guid.Empty && !movieIdToBoxSet.ContainsKey(child.Id))
+                    {
+                        movieIdToBoxSet[child.Id] = boxSet;
+                    }
+                    if (!string.IsNullOrWhiteSpace(child.Path) && !moviePathToBoxSet.ContainsKey(child.Path))
+                    {
+                        moviePathToBoxSet[child.Path] = boxSet;
+                    }
+                }
+            }
+
             var seenIds = new HashSet<Guid>();
             var grouped = new List<BaseItem>();
 
             foreach (var item in list)
             {
                 BaseItem displayItem = item;
-                var parentBoxSetId = item.GetParents().Select(p => p.Id).FirstOrDefault(id => boxSetById.ContainsKey(id));
-                if (parentBoxSetId != Guid.Empty)
+                if (movieIdToBoxSet.TryGetValue(item.Id, out var byId))
                 {
-                    displayItem = boxSetById[parentBoxSetId];
+                    displayItem = byId;
+                }
+                else if (!string.IsNullOrWhiteSpace(item.Path) && moviePathToBoxSet.TryGetValue(item.Path, out var byPath))
+                {
+                    displayItem = byPath;
                 }
 
                 if (seenIds.Add(displayItem.Id))
