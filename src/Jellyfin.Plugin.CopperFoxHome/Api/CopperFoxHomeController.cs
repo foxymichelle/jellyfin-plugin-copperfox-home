@@ -286,18 +286,29 @@ public class CopperFoxHomeController : ControllerBase
 
             foreach (var boxSet in boxSets)
             {
-                var children = _libraryManager.GetItemList(new InternalItemsQuery(user)
+                foreach (var child in boxSet.GetLinkedChildren())
                 {
-                    Parent = boxSet
-                });
-                foreach (var child in children)
-                {
-                    if (!movieIdToBoxSet.ContainsKey(child.Id))
+                    var resolvedId = child.ItemId ?? Guid.Empty;
+                    if (resolvedId != Guid.Empty && !movieIdToBoxSet.ContainsKey(resolvedId))
                     {
-                        movieIdToBoxSet[child.Id] = boxSet;
+                        movieIdToBoxSet[resolvedId] = boxSet;
                     }
                 }
             }
+
+            var seenIds = new HashSet<Guid>();
+            var grouped = new List<BaseItem>();
+
+            foreach (var item in list)
+            {
+                var displayItem = movieIdToBoxSet.TryGetValue(item.Id, out var parentBoxSet) ? parentBoxSet : item;
+                if (seenIds.Add(displayItem.Id))
+                {
+                    grouped.Add(displayItem);
+                }
+            }
+            list = grouped;
+        }
 
             var seenIds = new HashSet<Guid>();
             var grouped = new List<BaseItem>();
