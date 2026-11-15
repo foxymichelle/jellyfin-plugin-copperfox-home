@@ -120,12 +120,11 @@ public class CopperFoxHomeController : ControllerBase
             return new List<BaseItem>();
         }
 
-        if (string.Equals(rowDef.RowType, "Genre", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(rowDef.TargetValue))
+                if (string.Equals(rowDef.RowType, "Genre", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(rowDef.TargetValue))
         {
             var genreName = rowDef.TargetValue.Trim();
             usedGenres.Add(genreName);
-            var isDiscover = string.Equals(rowDef.Scope, "DiscoverOnly", StringComparison.OrdinalIgnoreCase);
-            dynamicTitle = string.IsNullOrWhiteSpace(rowDef.Title)
+            dynamicTitle = string.IsNullOrWhiteSpace(rowDef.Title) ? genreName : rowDef.Title;
                 ? (isDiscover ? $"DISCOVER More of {chosenGenre}" : $"More of {chosenGenre}")
                 : rowDef.Title.Replace("{Genre}", chosenGenre);
 
