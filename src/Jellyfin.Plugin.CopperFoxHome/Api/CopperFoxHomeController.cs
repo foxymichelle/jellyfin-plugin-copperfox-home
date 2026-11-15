@@ -283,19 +283,15 @@ public class CopperFoxHomeController : ControllerBase
             }).OfType<MediaBrowser.Controller.Entities.Movies.BoxSet>().ToList();
 
             var movieIdToBoxSet = new Dictionary<Guid, BaseItem>();
-            var moviePathToBoxSet = new Dictionary<string, BaseItem>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var boxSet in boxSets)
             {
-                foreach (var child in boxSet.GetLinkedChildren())
+                var children = boxSet.GetChildren(user, true);
+                foreach (var child in children)
                 {
-                    if (child.Id != Guid.Empty && !movieIdToBoxSet.ContainsKey(child.Id))
+                    if (!movieIdToBoxSet.ContainsKey(child.Id))
                     {
                         movieIdToBoxSet[child.Id] = boxSet;
-                    }
-                    if (!string.IsNullOrWhiteSpace(child.Path) && !moviePathToBoxSet.ContainsKey(child.Path))
-                    {
-                        moviePathToBoxSet[child.Path] = boxSet;
                     }
                 }
             }
@@ -305,16 +301,7 @@ public class CopperFoxHomeController : ControllerBase
 
             foreach (var item in list)
             {
-                BaseItem displayItem = item;
-                if (movieIdToBoxSet.TryGetValue(item.Id, out var byId))
-                {
-                    displayItem = byId;
-                }
-                else if (!string.IsNullOrWhiteSpace(item.Path) && moviePathToBoxSet.TryGetValue(item.Path, out var byPath))
-                {
-                    displayItem = byPath;
-                }
-
+                var displayItem = movieIdToBoxSet.TryGetValue(item.Id, out var parentBoxSet) ? parentBoxSet : item;
                 if (seenIds.Add(displayItem.Id))
                 {
                     grouped.Add(displayItem);
