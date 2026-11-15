@@ -31,12 +31,9 @@
 
                 <div id="rowsContainer"></div>
 
-                <div style="margin-top:1em;">
-                    <button is="emby-button" type="button" id="btnAddRow" class="raised button-submit"><span>+ Add Row</span></button>
-                </div>
-
-                <div style="margin-top:2em;">
-                    <button is="emby-button" type="submit" class="raised button-submit block"><span>Save</span></button>
+                <div style="display:flex;align-items:center;gap:16px;margin-top:1.5em;">
+                    <button is="emby-button" type="button" id="btnAddRow" class="raised button-submit" style="width:auto;flex:0 0 auto;"><span>+ Add Row</span></button>
+                    <button is="emby-button" type="submit" class="raised button-submit" style="flex:1;margin:0;"><span>Save</span></button>
                 </div>
             </form>
 
@@ -114,6 +111,7 @@
 
                     var isCollection = row.RowType === "Collection";
                     var isSystemRow = row.RowType === "MyMedia" || row.RowType === "ContinueAndUpNext" || row.RowType === "LatestMovies" || row.RowType === "LatestShows" || row.RowType === "StreamingServices";
+                    var hideScope = row.RowType === "StreamingServices" || row.RowType === "MyMedia" || row.RowType === "ContinueAndUpNext";
                     var isAuto = isSystemRow || row.RowType === "TopGenre1" || row.RowType === "TopGenre2" || row.RowType === "TopGenre3" || row.RowType === "TopGenre" || row.RowType === "BecauseYouWatched";
                     var imgStyle = row.ImageStyle || "Poster";
 
@@ -164,11 +162,19 @@
                             '</div>';
                     }
 
-                    var radioColHtml =
-                        '<div style="display:flex;flex-direction:column;justify-content:center;gap:8px;min-width:95px;border-left:1px solid rgba(255,255,255,0.12);padding-left:14px;">' +
-                            '<label style="cursor:pointer;font-size:14px;display:flex;align-items:center;margin:0;"><input type="radio" name="imgStyle_' + idx + '" class="row-img-style" value="Poster" ' + (imgStyle === "Poster" ? 'checked' : '') + ' style="margin-right:6px;" />Poster</label>' +
-                            '<label style="cursor:pointer;font-size:14px;display:flex;align-items:center;margin:0;"><input type="radio" name="imgStyle_' + idx + '" class="row-img-style" value="Thumb" ' + (imgStyle === "Thumb" ? 'checked' : '') + ' style="margin-right:6px;" />Thumb</label>' +
-                        '</div>';
+                    var radioColHtml = row.RowType === "StreamingServices"
+                        ? '<div style="min-width:95px;"></div>'
+                        : '<div style="display:flex;flex-direction:column;justify-content:center;gap:8px;min-width:95px;border-left:1px solid rgba(255,255,255,0.12);padding-left:14px;">' +
+                              '<label style="cursor:pointer;font-size:14px;display:flex;align-items:center;margin:0;"><input type="radio" name="imgStyle_' + idx + '" class="row-img-style" value="Poster" ' + (imgStyle === "Poster" ? 'checked' : '') + ' style="margin-right:6px;" />Poster</label>' +
+                              '<label style="cursor:pointer;font-size:14px;display:flex;align-items:center;margin:0;"><input type="radio" name="imgStyle_' + idx + '" class="row-img-style" value="Thumb" ' + (imgStyle === "Thumb" ? 'checked' : '') + ' style="margin-right:6px;" />Thumb</label>' +
+                          '</div>';
+
+                    var scopeColHtml = hideScope
+                        ? '<div></div>'
+                        : '<div><select class="row-scope" style="width:100%;box-sizing:border-box;padding:9px;font-size:14px;background:#181818;color:#fff;border:1px solid #444;border-radius:4px;">' +
+                              '<option value="OwnedOnly"' + (row.Scope === "OwnedOnly" ? " selected" : "") + '>Owned Libraries Only</option>' +
+                              '<option value="DiscoverOnly"' + (row.Scope === "DiscoverOnly" ? " selected" : "") + '>Discover Folder Only</option>' +
+                          '</select></div>';
 
                     card.innerHTML =
                         '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-width:36px;">' +
@@ -181,8 +187,7 @@
                                 '<div><select class="row-type" style="width:100%;box-sizing:border-box;padding:9px;font-size:14px;background:#181818;color:#fff;border:3px solid #666;border-radius:4px;">' +
                                     '<option value="MyMedia"' + (row.RowType === "MyMedia" ? " selected" : "") + '>My Media</option>' +
                                     '<option value="ContinueAndUpNext"' + (row.RowType === "ContinueAndUpNext" ? " selected" : "") + '>Continue &amp; Up Next</option>' +
-                                    '<option value="LatestMovies"' + (row.RowType === "LatestMovies" || row.RowType === "LatestMedia" ? " selected" : "") + '>Latest Movies</option>' +
-                                    '<option value="LatestShows"' + (row.RowType === "LatestShows" ? " selected" : "") + '>Latest Shows</option>' +
+                                    '<option value="LatestMovies"' + (row.RowType === "LatestMovies" ? " selected" : "") + '>Latest Movies</option>' +
                                     '<option value="LatestShows"' + (row.RowType === "LatestShows" ? " selected" : "") + '>Latest Shows</option>' +
                                     '<option value="StreamingServices"' + (row.RowType === "StreamingServices" ? " selected" : "") + '>Streaming Services</option>' +
                                     '<option value="Collection"' + (row.RowType === "Collection" ? " selected" : "") + '>Collection / Playlist</option>' +
@@ -194,10 +199,7 @@
                                     '<option value="BecauseYouWatched"' + (row.RowType === "BecauseYouWatched" ? " selected" : "") + '>Because You Watched</option>' +
                                 '</select></div>' +
                                 '<div><input type="text" class="row-title" value="' + (row.Title || "") + '" placeholder="' + titlePlaceholder + '" style="width:100%;box-sizing:border-box;padding:9px;font-size:14px;background:#181818;color:#fff;border:1px solid #444;border-radius:4px;" /></div>' +
-                                '<div><select class="row-scope" style="width:100%;box-sizing:border-box;padding:9px;font-size:14px;background:#181818;color:#fff;border:1px solid #444;border-radius:4px;">' +
-                                    '<option value="OwnedOnly"' + (row.Scope === "OwnedOnly" ? " selected" : "") + '>Owned Libraries Only</option>' +
-                                    '<option value="DiscoverOnly"' + (row.Scope === "DiscoverOnly" ? " selected" : "") + '>Discover Folder Only</option>' +
-                                '</select></div>' +
+                                scopeColHtml +
                             '</div>' +
                             secondRowHtml +
                         '</div>' +
@@ -213,7 +215,10 @@
                         }
                         renderRows();
                     };
-                    card.querySelector(".row-scope").onchange = function (e) { currentRows[idx].Scope = e.target.value; };
+                    var scopeEl = card.querySelector(".row-scope");
+                    if (scopeEl) {
+                        scopeEl.onchange = function (e) { currentRows[idx].Scope = e.target.value; };
+                    }
 
                     var targetEl = card.querySelector(".row-target");
                     if (targetEl) {
