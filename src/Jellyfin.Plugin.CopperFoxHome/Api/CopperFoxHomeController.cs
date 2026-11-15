@@ -166,39 +166,41 @@ public class CopperFoxHomeController : ControllerBase
             {
                 Recursive = true,
                 IsPlayed = true,
-                IncludeItemTypes = new[] { BaseItemKind.Movie, BaseItemKind.Series },
+                IncludeItemTypes = new[] { BaseItemKind.Movie, BaseItemKind.Series, BaseItemKind.Episode },
                 OrderBy = new[] { (ItemSortBy.DatePlayed, SortOrder.Descending) },
-                Limit = 10
+                Limit = 15
             };
-            var seed = ApplyScopeFilter(_libraryManager.GetItemList(lastWatchedQuery), "OwnedOnly", discoverLibGuid)
-                .FirstOrDefault();
-            if (seed == null || seed.Genres == null || seed.Genres.Length == 0)
+            var recent = ApplyScopeFilter(_libraryManager.GetItemList(lastWatchedQuery), "OwnedOnly", discoverLibGuid)
+                .Select(x => x is MediaBrowser.Controller.Entities.TV.Episode ep ? (BaseItem?)ep.Series : x)
+                .FirstOrDefault(x => x != null && x.Genres != null && x.Genres.Length > 0);
+
+            if (recent == null)
             {
                 return new List<BaseItem>();
             }
 
-            dynamicTitle = $"Because You Watched {seed.Name}";
-            var seedGenres = new HashSet<string>(seed.Genres, StringComparer.OrdinalIgnoreCase);
-            var seedTags = new HashSet<string>(seed.Tags ?? Array.Empty<string>(), StringComparer.OrdinalIgnoreCase);
+            dynamicTitle = $"Because You Watched {recent.Name}";
+            var seedGenres = new HashSet<string>(recent.Genres, StringComparer.OrdinalIgnoreCase);
+            var seedTags = new HashSet<string>(recent.Tags ?? Array.Empty<string>(), StringComparer.OrdinalIgnoreCase);
 
             var poolQuery = new InternalItemsQuery(user)
             {
                 Recursive = true,
                 IsPlayed = false,
-                IncludeItemTypes = new[] { seed.GetBaseItemKind() },
-                Genres = seed.Genres,
+                IncludeItemTypes = new[] { recent.GetBaseItemKind() },
+                Genres = recent.Genres,
                 Limit = 250
             };
 
             var ranked = ApplyScopeFilter(_libraryManager.GetItemList(poolQuery), rowDef.Scope, discoverLibGuid)
-                .Where(x => x.Id != seed.Id)
+                .Where(x => x.Id != recent.Id)
                 .Select(x =>
                 {
                     var genreOverlap = (x.Genres ?? Array.Empty<string>()).Count(g => seedGenres.Contains(g));
                     var tagOverlap = (x.Tags ?? Array.Empty<string>()).Count(t => seedTags.Contains(t));
                     return new { Item = x, Score = (tagOverlap * 3) + genreOverlap };
                 })
-                .Where(x => x.Score >= Math.Min(2, seedGenres.Count))
+                .Where(x => x.Score >= 1)
                 .OrderByDescending(x => x.Score)
                 .ThenBy(_ => Random.Shared.Next())
                 .Select(x => x.Item)
@@ -263,29 +265,21 @@ public class CopperFoxHomeController : ControllerBase
             {
                 Recursive = true,
                 IncludeItemTypes = new[] { BaseItemKind.BoxSet }
-            }).OfType<MediaBrowser.Controller.Entities.Movies.BoxSet>().ToList();
+            });
 
-            var movieToBoxSet = new Dictionary<Guid, BaseItem>();
-            foreach (var boxSet in boxSets)
-            {
-                var children = _libraryManager.GetItemList(new InternalItemsQuery(user)
-                {
-                    ParentId = boxSet.Id
-                });
-                foreach (var child in children)
-                {
-                    if (!movieToBoxSet.ContainsKey(child.Id))
-                    {
-                        movieToBoxSet[child.Id] = boxSet;
-                    }
-                }
-            }
-
+            var boxSetById = boxSets.ToDictionary(b => b.Id);
             var seenIds = new HashSet<Guid>();
             var grouped = new List<BaseItem>();
+
             foreach (var item in list)
             {
-                var displayItem = movieToBoxSet.TryGetValue(item.Id, out var parentBoxSet) ? parentBoxSet : item;
+                BaseItem displayItem = item;
+                var parentBoxSetId = item.GetParents().Select(p => p.Id).FirstOrDefault(id => boxSetById.ContainsKey(id));
+                if (parentBoxSetId != Guid.Empty)
+                {
+                    displayItem = boxSetById[parentBoxSetId];
+                }
+
                 if (seenIds.Add(displayItem.Id))
                 {
                     grouped.Add(displayItem);
