@@ -177,7 +177,7 @@ public class CopperFoxHomeController : ControllerBase
                 Recursive = true,
                 IsPlayed = false,
                 IncludeItemTypes = new[] { seed.GetBaseItemKind() },
-                Genres = new[] { seed.Genres },
+                Genres = seed.Genres,
                 OrderBy = new[] { (ItemSortBy.Random, SortOrder.Ascending) },
                 Limit = limit * 2
             };
@@ -214,10 +214,10 @@ public class CopperFoxHomeController : ControllerBase
 
         if (string.Equals(scope, "DiscoverOnly", StringComparison.OrdinalIgnoreCase))
         {
-            return items.Where(i => i.AncestorIds != null && i.AncestorIds.Contains(discoverLibGuid));
+            return items.Where(i => i.GetAncestorIds().Contains(discoverLibGuid));
         }
 
-        return items.Where(i => i.AncestorIds == null || !i.AncestorIds.Contains(discoverLibGuid));
+        return items.Where(i => !i.GetAncestorIds().Contains(discoverLibGuid));
     }
 
     private Guid GetCurrentUserId()
