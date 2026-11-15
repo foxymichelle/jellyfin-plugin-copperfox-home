@@ -164,12 +164,11 @@
                             '</div>';
                     }
 
-                    var radioColHtml = row.RowType === "MyMedia"
-                        ? '<div style="min-width:95px;"></div>'
-                        : '<div style="display:flex;flex-direction:column;justify-content:center;gap:8px;min-width:95px;border-left:1px solid rgba(255,255,255,0.12);padding-left:14px;">' +
-                              '<label style="cursor:pointer;font-size:14px;display:flex;align-items:center;margin:0;"><input type="radio" name="imgStyle_' + idx + '" class="row-img-style" value="Poster" ' + (imgStyle === "Poster" ? 'checked' : '') + ' style="margin-right:6px;" />Poster</label>' +
-                              '<label style="cursor:pointer;font-size:14px;display:flex;align-items:center;margin:0;"><input type="radio" name="imgStyle_' + idx + '" class="row-img-style" value="Thumb" ' + (imgStyle === "Thumb" ? 'checked' : '') + ' style="margin-right:6px;" />Thumb</label>' +
-                          '</div>';
+                    var radioColHtml =
+                        '<div style="display:flex;flex-direction:column;justify-content:center;gap:8px;min-width:95px;border-left:1px solid rgba(255,255,255,0.12);padding-left:14px;">' +
+                            '<label style="cursor:pointer;font-size:14px;display:flex;align-items:center;margin:0;"><input type="radio" name="imgStyle_' + idx + '" class="row-img-style" value="Poster" ' + (imgStyle === "Poster" ? 'checked' : '') + ' style="margin-right:6px;" />Poster</label>' +
+                            '<label style="cursor:pointer;font-size:14px;display:flex;align-items:center;margin:0;"><input type="radio" name="imgStyle_' + idx + '" class="row-img-style" value="Thumb" ' + (imgStyle === "Thumb" ? 'checked' : '') + ' style="margin-right:6px;" />Thumb</label>' +
+                        '</div>';
 
                     card.innerHTML =
                         '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-width:36px;">' +
@@ -206,7 +205,7 @@
                         var newType = e.target.value;
                         currentRows[idx].RowType = newType;
                         currentRows[idx].GroupIntoCollections = (newType !== "Collection" && newType !== "MyMedia" && newType !== "ContinueAndUpNext" && newType !== "LatestMedia");
-                        if (newType === "ContinueAndUpNext" || newType === "LatestMedia") {
+                        if (newType === "MyMedia" || newType === "ContinueAndUpNext" || newType === "LatestMedia") {
                             currentRows[idx].ImageStyle = "Thumb";
                         }
                         renderRows();
@@ -284,9 +283,9 @@
                 ApiClient.getUserViews(userId),
                 ApiClient.getItems(userId, { IncludeItemTypes: "BoxSet,Playlist", Recursive: true, SortBy: "SortName" })
             ]).then(function (results) {
-                var config = results || {};
-                librariesList = (results && results.Items) || [];
-                collectionsList = (results && results.Items) || [];
+                var config = results[0] || {};
+                librariesList = (results[1] && results[1].Items) || [];
+                collectionsList = (results[2] && results[2].Items) || [];
 
                 var libSelect = document.getElementById("selectDiscoverLibrary");
                 if (libSelect) {
