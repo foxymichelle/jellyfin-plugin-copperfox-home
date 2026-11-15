@@ -124,7 +124,9 @@ public class CopperFoxHomeController : ControllerBase
         {
             var genreName = rowDef.TargetValue.Trim();
             usedGenres.Add(genreName);
-            dynamicTitle = string.IsNullOrWhiteSpace(rowDef.Title) ? genreName : rowDef.Title;
+            dynamicTitle = string.IsNullOrWhiteSpace(rowDef.Title)
+                ? chosenGenre
+                : rowDef.Title.Replace("{Genre}", chosenGenre);
 
             var genreQuery = new InternalItemsQuery(user)
             {
