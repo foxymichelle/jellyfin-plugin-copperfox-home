@@ -7,7 +7,7 @@
 <body>
 <div id="CopperFoxHomeConfigPage" data-role="page" class="page type-interior pluginConfigurationPage">
     <div data-role="content">
-        <div class="content-primary" style="max-width:1280px;width:95%;">
+        <div class="content-primary" style="max-width:1540px;width:96%;">
             <form id="CopperFoxHomeConfigForm">
                 <div class="sectionTitleContainer flex align-items-center">
                     <h2 class="sectionTitle">CopperFox Home Settings</h2>
@@ -19,6 +19,11 @@
                         <option value="">None (No Discover Folder)</option>
                     </select>
                 </div>
+
+                <div class="sectionTitleContainer flex align-items-center" style="margin-top:2em;">
+                    <h3 class="sectionTitle">My Media Order &amp; Visibility</h3>
+                </div>
+                <div id="myMediaContainer" style="margin-bottom:2em;"></div>
 
                 <div class="sectionTitleContainer flex align-items-center" style="margin-top:2em;">
                     <h3 class="sectionTitle">Home Screen Rows</h3>
@@ -34,13 +39,69 @@
                     <button is="emby-button" type="submit" class="raised button-submit block"><span>Save</span></button>
                 </div>
             </form>
+
         </div>
     </div>
         <script type="text/javascript">
         (function () {
             var pluginId = "c099e7f0-4a1b-4c8d-9e2a-7f1b3c5d8e9a";
             var collectionsList = [];
+            var librariesList = [];
+            var myMediaOrder = [];
+            var excludedMyMediaIds = [];
             var currentRows = [];
+
+            function renderMyMedia() {
+                var container = document.getElementById("myMediaContainer");
+                if (!container) return;
+                container.innerHTML = "";
+
+                var ordered = [];
+                myMediaOrder.forEach(function (id) {
+                    var found = librariesList.find(function (l) { return l.Id === id; });
+                    if (found) ordered.push(found);
+                });
+                librariesList.forEach(function (lib) {
+                    if (!ordered.some(function (o) { return o.Id === lib.Id; })) ordered.push(lib);
+                });
+                myMediaOrder = ordered.map(function (l) { return l.Id; });
+
+                ordered.forEach(function (lib, idx) {
+                    var isHidden = excludedMyMediaIds.indexOf(lib.Id) !== -1;
+                    var rowEl = document.createElement("div");
+                    rowEl.style.cssText = "display:flex;align-items:center;gap:12px;border:1px solid rgba(255,255,255,0.12);border-radius:6px;padding:8px 14px;margin-bottom:8px;background:rgba(0,0,0,0.2);";
+                    rowEl.innerHTML =
+                        '<button type="button" class="mm-up" style="padding:2px 8px;cursor:pointer;">▲</button>' +
+                        '<button type="button" class="mm-down" style="padding:2px 8px;cursor:pointer;">▼</button>' +
+                        '<span style="flex:1;font-size:14px;">' + lib.Name + '</span>' +
+                        '<label style="cursor:pointer;font-size:14px;display:flex;align-items:center;margin:0;"><input type="checkbox" class="mm-show" ' + (!isHidden ? 'checked' : '') + ' style="margin-right:8px;" />Show in My Media</label>';
+
+                    rowEl.querySelector(".mm-up").onclick = function () {
+                        if (idx > 0) {
+                            var t = myMediaOrder[idx - 1];
+                            myMediaOrder[idx - 1] = myMediaOrder[idx];
+                            myMediaOrder[idx] = t;
+                            renderMyMedia();
+                        }
+                    };
+                    rowEl.querySelector(".mm-down").onclick = function () {
+                        if (idx < myMediaOrder.length - 1) {
+                            var t = myMediaOrder[idx + 1];
+                            myMediaOrder[idx + 1] = myMediaOrder[idx];
+                            myMediaOrder[idx] = t;
+                            renderMyMedia();
+                        }
+                    };
+                    rowEl.querySelector(".mm-show").onchange = function (e) {
+                        if (e.target.checked) {
+                            excludedMyMediaIds = excludedMyMediaIds.filter(function (id) { return id !== lib.Id; });
+                        } else if (excludedMyMediaIds.indexOf(lib.Id) === -1) {
+                            excludedMyMediaIds.push(lib.Id);
+                        }
+                    };
+                    container.appendChild(rowEl);
+                });
+            }
 
             function renderRows() {
                 var container = document.getElementById("rowsContainer");
@@ -52,7 +113,9 @@
                     card.style.cssText = "display:flex;align-items:stretch;gap:16px;border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:14px 16px;margin-bottom:14px;background:rgba(0,0,0,0.2);";
 
                     var isCollection = row.RowType === "Collection";
-                    var isAuto = row.RowType === "TopGenre1" || row.RowType === "TopGenre2" || row.RowType === "TopGenre3" || row.RowType === "TopGenre" || row.RowType === "BecauseYouWatched";
+                    var isSystemRow = row.RowType === "MyMedia" || row.RowType === "ContinueAndUpNext" || row.RowType === "LatestMedia";
+                    var isAuto = isSystemRow || row.RowType === "TopGenre1" || row.RowType === "TopGenre2" || row.RowType === "TopGenre3" || row.RowType === "TopGenre" || row.RowType === "BecauseYouWatched";
+                    var imgStyle = row.ImageStyle || "Poster";
 
                     var optionsHtml = '<option value="">Select Collection or Playlist</option>' +
                         collectionsList.map(function (c) {
@@ -84,6 +147,12 @@
                                 '<div style="grid-column:span 2;">' + targetHtml + '</div>' +
                                 '<div style="display:flex;align-items:center;">' + delBtnHtml + '</div>' +
                             '</div>';
+                    } else if (isSystemRow) {
+                        secondRowHtml =
+                            '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:12px;">' +
+                                '<div style="grid-column:span 2;"></div>' +
+                                '<div style="display:flex;align-items:center;">' + delBtnHtml + '</div>' +
+                            '</div>';
                     } else if (isAuto) {
                         secondRowHtml =
                             '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:12px;">' +
@@ -95,6 +164,13 @@
                             '</div>';
                     }
 
+                    var radioColHtml = row.RowType === "MyMedia"
+                        ? '<div style="min-width:95px;"></div>'
+                        : '<div style="display:flex;flex-direction:column;justify-content:center;gap:8px;min-width:95px;border-left:1px solid rgba(255,255,255,0.12);padding-left:14px;">' +
+                              '<label style="cursor:pointer;font-size:14px;display:flex;align-items:center;margin:0;"><input type="radio" name="imgStyle_' + idx + '" class="row-img-style" value="Poster" ' + (imgStyle === "Poster" ? 'checked' : '') + ' style="margin-right:6px;" />Poster</label>' +
+                              '<label style="cursor:pointer;font-size:14px;display:flex;align-items:center;margin:0;"><input type="radio" name="imgStyle_' + idx + '" class="row-img-style" value="Thumb" ' + (imgStyle === "Thumb" ? 'checked' : '') + ' style="margin-right:6px;" />Thumb</label>' +
+                          '</div>';
+
                     card.innerHTML =
                         '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-width:36px;">' +
                             '<button type="button" class="btn-up" style="padding:2px 8px;cursor:pointer;">▲</button>' +
@@ -104,6 +180,9 @@
                         '<div style="flex:1;min-width:0;">' +
                             '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;">' +
                                 '<div><select class="row-type" style="width:100%;box-sizing:border-box;padding:9px;font-size:14px;background:#181818;color:#fff;border:3px solid #666;border-radius:4px;">' +
+                                    '<option value="MyMedia"' + (row.RowType === "MyMedia" ? " selected" : "") + '>My Media</option>' +
+                                    '<option value="ContinueAndUpNext"' + (row.RowType === "ContinueAndUpNext" ? " selected" : "") + '>Continue &amp; Up Next</option>' +
+                                    '<option value="LatestMedia"' + (row.RowType === "LatestMedia" ? " selected" : "") + '>Latest Added</option>' +
                                     '<option value="Collection"' + (row.RowType === "Collection" ? " selected" : "") + '>Collection / Playlist</option>' +
                                     '<option value="Tag"' + (row.RowType === "Tag" || row.RowType === "Keyword" ? " selected" : "") + '>Tag Match</option>' +
                                     '<option value="Genre"' + (row.RowType === "Genre" ? " selected" : "") + '>Specific Genre</option>' +
@@ -119,13 +198,17 @@
                                 '</select></div>' +
                             '</div>' +
                             secondRowHtml +
-                        '</div>';
+                        '</div>' +
+                        radioColHtml;
 
                     card.querySelector(".row-title").oninput = function (e) { currentRows[idx].Title = e.target.value; };
                     card.querySelector(".row-type").onchange = function (e) {
                         var newType = e.target.value;
                         currentRows[idx].RowType = newType;
-                        currentRows[idx].GroupIntoCollections = (newType !== "Collection");
+                        currentRows[idx].GroupIntoCollections = (newType !== "Collection" && newType !== "MyMedia" && newType !== "ContinueAndUpNext" && newType !== "LatestMedia");
+                        if (newType === "ContinueAndUpNext" || newType === "LatestMedia") {
+                            currentRows[idx].ImageStyle = "Thumb";
+                        }
                         renderRows();
                     };
                     card.querySelector(".row-scope").onchange = function (e) { currentRows[idx].Scope = e.target.value; };
@@ -152,6 +235,12 @@
                         groupEl.onchange = function (e) { currentRows[idx].GroupIntoCollections = e.target.checked; };
                     }
 
+                    card.querySelectorAll(".row-img-style").forEach(function (radio) {
+                        radio.onchange = function (e) {
+                            if (e.target.checked) currentRows[idx].ImageStyle = e.target.value;
+                        };
+                    });
+
                     card.querySelector(".btn-up").onclick = function () { if (idx > 0) { var t = currentRows[idx - 1]; currentRows[idx - 1] = currentRows[idx]; currentRows[idx] = t; renderRows(); } };
                     card.querySelector(".btn-down").onclick = function () { if (idx < currentRows.length - 1) { var t = currentRows[idx + 1]; currentRows[idx + 1] = currentRows[idx]; currentRows[idx] = t; renderRows(); } };
                     card.querySelector(".btn-del").onclick = function () { currentRows.splice(idx, 1); renderRows(); };
@@ -160,11 +249,10 @@
                 });
             }
 
-            // 1. Bind Add Row & Save IMMEDIATELY before any async calls
             var addBtn = document.getElementById("btnAddRow");
             if (addBtn) {
                 addBtn.onclick = function () {
-                    currentRows.push({ Title: "", RowType: "Collection", TargetValue: "", ExcludeTags: "", GroupIntoCollections: false, Scope: "OwnedOnly", SortBy: "SortName", SortOrder: "Ascending", Limit: 25 });
+                    currentRows.push({ Title: "", RowType: "Collection", TargetValue: "", ExcludeTags: "", GroupIntoCollections: false, ImageStyle: "Poster", Scope: "OwnedOnly", SortBy: "SortName", SortOrder: "Ascending", Limit: 25 });
                     renderRows();
                 };
             }
@@ -176,6 +264,8 @@
                     Dashboard.showLoadingMsg();
                     ApiClient.getPluginConfiguration(pluginId).then(function (config) {
                         config.DiscoverLibraryId = document.getElementById("selectDiscoverLibrary").value;
+                        config.MyMediaLibraryOrder = myMediaOrder;
+                        config.ExcludedMyMediaIds = excludedMyMediaIds;
                         config.Rows = currentRows;
                         return ApiClient.updatePluginConfiguration(pluginId, config);
                     }).then(function () {
@@ -188,24 +278,26 @@
                 };
             }
 
-            // 2. Load saved config & dropdown options in background
             var userId = ApiClient.getCurrentUserId();
             Promise.all([
                 ApiClient.getPluginConfiguration(pluginId),
                 ApiClient.getUserViews(userId),
                 ApiClient.getItems(userId, { IncludeItemTypes: "BoxSet,Playlist", Recursive: true, SortBy: "SortName" })
             ]).then(function (results) {
-                var config = results[0] || {};
-                var views = (results[1] && results[1].Items) || [];
-                collectionsList = (results[2] && results[2].Items) || [];
+                var config = results || {};
+                librariesList = (results && results.Items) || [];
+                collectionsList = (results && results.Items) || [];
 
                 var libSelect = document.getElementById("selectDiscoverLibrary");
                 if (libSelect) {
                     libSelect.innerHTML = '<option value="">None (No Discover Folder)</option>' +
-                        views.map(function (v) { return '<option value="' + v.Id + '">' + v.Name + '</option>'; }).join("");
+                        librariesList.map(function (v) { return '<option value="' + v.Id + '">' + v.Name + '</option>'; }).join("");
                     libSelect.value = config.DiscoverLibraryId || "";
                 }
+                myMediaOrder = Array.isArray(config.MyMediaLibraryOrder) ? config.MyMediaLibraryOrder : [];
+                excludedMyMediaIds = Array.isArray(config.ExcludedMyMediaIds) ? config.ExcludedMyMediaIds : [];
                 currentRows = Array.isArray(config.Rows) ? config.Rows : [];
+                renderMyMedia();
                 renderRows();
             }).catch(function (err) {
                 console.error("CopperFox Home load error:", err);

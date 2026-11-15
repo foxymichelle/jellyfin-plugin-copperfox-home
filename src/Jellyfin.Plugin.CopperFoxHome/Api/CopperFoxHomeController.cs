@@ -59,7 +59,13 @@ public class CopperFoxHomeController : ControllerBase
         {
             var rowDef = config.Rows[i];
             var items = ResolveRowItems(rowDef, user, discoverLibGuid, usedGenres, out var dynamicTitle);
-            if (items.Count == 0 && !string.Equals(rowDef.RowType, "Collection", StringComparison.OrdinalIgnoreCase))
+            var isClientFetched =
+                string.Equals(rowDef.RowType, "Collection", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(rowDef.RowType, "MyMedia", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(rowDef.RowType, "ContinueAndUpNext", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(rowDef.RowType, "LatestMedia", StringComparison.OrdinalIgnoreCase);
+
+            if (items.Count == 0 && !isClientFetched)
             {
                 continue;
             }
@@ -81,11 +87,17 @@ public class CopperFoxHomeController : ControllerBase
                 rowType = rowDef.RowType,
                 targetValue = rowDef.TargetValue,
                 scope = rowDef.Scope,
+                imageStyle = string.IsNullOrWhiteSpace(rowDef.ImageStyle) ? "Poster" : rowDef.ImageStyle,
                 items = dtos
             });
         }
 
-        return Ok(new { rows = resultRows });
+        return Ok(new
+        {
+            myMediaOrder = config.MyMediaLibraryOrder ?? new List<string>(),
+            excludedMyMediaIds = config.ExcludedMyMediaIds ?? new List<string>(),
+            rows = resultRows
+        });
     }
 
     private List<BaseItem> ResolveRowItems(
@@ -98,7 +110,10 @@ public class CopperFoxHomeController : ControllerBase
         dynamicTitle = rowDef.Title;
         var limit = rowDef.Limit > 0 ? rowDef.Limit : 25;
 
-        if (string.Equals(rowDef.RowType, "Collection", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(rowDef.RowType, "Collection", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(rowDef.RowType, "MyMedia", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(rowDef.RowType, "ContinueAndUpNext", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(rowDef.RowType, "LatestMedia", StringComparison.OrdinalIgnoreCase))
         {
             return new List<BaseItem>();
         }

@@ -3,6 +3,17 @@ using MediaBrowser.Model.Plugins;
 
 namespace Jellyfin.Plugin.CopperFoxHome.Configuration;
 
+public class PluginConfiguration : BasePluginConfiguration
+{
+    public string DiscoverLibraryId { get; set; } = string.Empty;
+
+    public List<string> MyMediaLibraryOrder { get; set; } = new List<string>();
+
+    public List<string> ExcludedMyMediaIds { get; set; } = new List<string>();
+
+    public List<CustomHomeRowDefinition> Rows { get; set; } = new List<CustomHomeRowDefinition>();
+}
+
 public class CustomHomeRowDefinition
 {
     public string Title { get; set; } = string.Empty;
@@ -15,6 +26,8 @@ public class CustomHomeRowDefinition
 
     public bool GroupIntoCollections { get; set; } = false;
 
+    public string ImageStyle { get; set; } = "Poster";
+
     public string Scope { get; set; } = "OwnedOnly";
 
     public string SortBy { get; set; } = "SortName";
@@ -24,9 +37,3 @@ public class CustomHomeRowDefinition
     public int Limit { get; set; } = 25;
 }
 
-public class PluginConfiguration : BasePluginConfiguration
-{
-    public string DiscoverLibraryId { get; set; } = string.Empty;
-
-    public List<CustomHomeRowDefinition> Rows { get; set; } = new List<CustomHomeRowDefinition>();
-}
