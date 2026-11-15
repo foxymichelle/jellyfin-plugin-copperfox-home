@@ -7,7 +7,7 @@
 <body>
 <div id="CopperFoxHomeConfigPage" data-role="page" class="page type-interior pluginConfigurationPage">
     <div data-role="content">
-        <div class="content-primary">
+        <div class="content-primary" style="max-width:1280px;width:95%;">
             <form id="CopperFoxHomeConfigForm">
                 <div class="sectionTitleContainer flex align-items-center">
                     <h2 class="sectionTitle">CopperFox Home Settings</h2>
@@ -18,7 +18,6 @@
                     <select is="emby-select" id="selectDiscoverLibrary" class="emby-select-withcolor emby-select">
                         <option value="">None (No Discover Folder)</option>
                     </select>
-                    <div class="fieldDescription">Items inside this library will be excluded from "Owned Only" rows and isolated to "Discover Only" rows.</div>
                 </div>
 
                 <div class="sectionTitleContainer flex align-items-center" style="margin-top:2em;justify-content:space-between;">
@@ -47,70 +46,101 @@
 
                 currentRows.forEach(function (row, idx) {
                     var card = document.createElement("div");
-                    card.style.cssText = "border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:16px;margin-bottom:14px;background:rgba(0,0,0,0.2);";
+                    card.style.cssText = "display:flex;align-items:stretch;gap:16px;border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:14px 16px;margin-bottom:14px;background:rgba(0,0,0,0.2);";
 
-                    var optionsHtml = '<option value="">-- Select Collection or Playlist --</option>' +
+                    var isCollection = row.RowType === "Collection";
+                    var isAuto = row.RowType === "TopGenre1" || row.RowType === "TopGenre2" || row.RowType === "TopGenre3" || row.RowType === "TopGenre" || row.RowType === "BecauseYouWatched";
+
+                    var optionsHtml = '<option value="">Select Collection or Playlist</option>' +
                         collectionsList.map(function (c) {
                             return '<option value="' + c.Id + '"' + (row.TargetValue === c.Id ? ' selected' : '') + '>' + c.Name + ' (' + c.Type + ')</option>';
                         }).join("");
 
-                    var placeholderText = "Auto-generated from watch history";
-                    if (row.RowType === "Tag" || row.RowType === "Keyword") placeholderText = "e.g. thanksgiving, christmas, winter";
-                    if (row.RowType === "Genre") placeholderText = "e.g. Horror, Comedy, Sci-Fi";
+                    var targetPlaceholder = row.RowType === "Genre" ? "Genre (e.g. Horror, Comedy)" : "Include tags (comma-separated)";
+                    var targetHtml = isCollection
+                        ? '<select class="row-target" style="width:100%;box-sizing:border-box;padding:9px;background:#181818;color:#fff;border:1px solid #444;border-radius:4px;">' + optionsHtml + '</select>'
+                        : '<input type="text" class="row-target" value="' + (row.TargetValue || "") + '" placeholder="' + targetPlaceholder + '" style="width:100%;box-sizing:border-box;padding:9px;background:#181818;color:#fff;border:1px solid #444;border-radius:4px;" />';
 
-                    var targetHtml = row.RowType === "Collection"
-                        ? '<select class="row-target" style="width:100%;padding:8px;margin-top:4px;background:#181818;color:#fff;border:1px solid #444;">' + optionsHtml + '</select>'
-                        : '<input type="text" class="row-target" value="' + (row.TargetValue || "") + '" placeholder="' + placeholderText + '" style="width:100%;padding:8px;margin-top:4px;background:#181818;color:#fff;border:1px solid #444;" />';
-
-                    var isCollection = row.RowType === "Collection";
-                    var extraFieldsHtml = isCollection
-                        ? ''
-                        : '<div><label>Exclude Tags (Comma-Separated)</label><input type="text" class="row-exclude" value="' + (row.ExcludeTags || "") + '" placeholder="e.g. christmas" style="width:100%;padding:8px;margin-top:4px;background:#181818;color:#fff;border:1px solid #444;" /></div>' +
-                          '<div><label>Library Scope</label><select class="row-scope" style="width:100%;padding:8px;margin-top:4px;background:#181818;color:#fff;border:1px solid #444;">' +
-                              '<option value="OwnedOnly"' + (row.Scope === "OwnedOnly" ? " selected" : "") + '>Owned Libraries Only</option>' +
-                              '<option value="DiscoverOnly"' + (row.Scope === "DiscoverOnly" ? " selected" : "") + '>Discover Folder Only</option>' +
-                          '</select></div>' +
-                          '<div style="display:flex;align-items:center;padding-top:22px;"><label style="cursor:pointer;"><input type="checkbox" class="row-group" ' + (row.GroupIntoCollections ? 'checked' : '') + ' style="margin-right:8px;" />Group Movies Into Collections</label></div>';
+                    var secondRowHtml = '';
+                    if (!isCollection && !isAuto) {
+                        secondRowHtml =
+                            '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:12px;">' +
+                                '<div>' + targetHtml + '</div>' +
+                                '<div><input type="text" class="row-exclude" value="' + (row.ExcludeTags || "") + '" placeholder="Exclude tags (comma-separated)" style="width:100%;box-sizing:border-box;padding:9px;background:#181818;color:#fff;border:1px solid #444;border-radius:4px;" /></div>' +
+                                '<div style="display:flex;align-items:center;"><label style="cursor:pointer;margin:0;"><input type="checkbox" class="row-group" ' + (row.GroupIntoCollections ? 'checked' : '') + ' style="margin-right:8px;" />Group Movies Into Collections</label></div>' +
+                            '</div>';
+                    } else if (isCollection) {
+                        secondRowHtml =
+                            '<div style="display:grid;grid-template-columns:1fr;gap:14px;margin-top:12px;">' +
+                                '<div>' + targetHtml + '</div>' +
+                            '</div>';
+                    } else if (isAuto) {
+                        secondRowHtml =
+                            '<div style="display:grid;grid-template-columns:1fr;gap:14px;margin-top:12px;">' +
+                                '<div style="display:flex;align-items:center;"><label style="cursor:pointer;margin:0;"><input type="checkbox" class="row-group" ' + (row.GroupIntoCollections ? 'checked' : '') + ' style="margin-right:8px;" />Group Movies Into Collections</label></div>' +
+                            '</div>';
+                    }
 
                     card.innerHTML =
-                        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">' +
-                            '<strong>Row #' + (idx + 1) + '</strong>' +
-                            '<div>' +
-                                '<button type="button" class="btn-up" style="margin-right:6px;padding:4px 10px;cursor:pointer;">↑</button>' +
-                                '<button type="button" class="btn-down" style="margin-right:6px;padding:4px 10px;cursor:pointer;">↓</button>' +
-                                '<button type="button" class="btn-del" style="color:#ff6b6b;padding:4px 10px;cursor:pointer;">Remove</button>' +
-                            '</div>' +
+                        '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-width:36px;">' +
+                            '<button type="button" class="btn-up" style="padding:2px 8px;cursor:pointer;">▲</button>' +
+                            '<strong style="font-size:13px;">#' + (idx + 1) + '</strong>' +
+                            '<button type="button" class="btn-down" style="padding:2px 8px;cursor:pointer;">▼</button>' +
                         '</div>' +
-                        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">' +
-                            '<div><label>Row Title</label><input type="text" class="row-title" value="' + (row.Title || "") + '" style="width:100%;padding:8px;margin-top:4px;background:#181818;color:#fff;border:1px solid #444;" /></div>' +
-                            '<div><label>Row Type</label><select class="row-type" style="width:100%;padding:8px;margin-top:4px;background:#181818;color:#fff;border:1px solid #444;">' +
-                                '<option value="Collection"' + (row.RowType === "Collection" ? " selected" : "") + '>Collection / Playlist</option>' +
-                                '<option value="Tag"' + (row.RowType === "Tag" || row.RowType === "Keyword" ? " selected" : "") + '>Tag Match (Comma-Separated)</option>' +
-                                '<option value="Genre"' + (row.RowType === "Genre" ? " selected" : "") + '>Specific Genre</option>' +
-                                '<option value="TopGenre1"' + (row.RowType === "TopGenre1" || row.RowType === "TopGenre" ? " selected" : "") + '>User Top Genre #1 (Auto)</option>' +
-                                '<option value="TopGenre2"' + (row.RowType === "TopGenre2" ? " selected" : "") + '>User Top Genre #2 (Auto)</option>' +
-                                '<option value="TopGenre3"' + (row.RowType === "TopGenre3" ? " selected" : "") + '>User Top Genre #3 (Auto)</option>' +
-                                '<option value="BecauseYouWatched"' + (row.RowType === "BecauseYouWatched" ? " selected" : "") + '>Because You Watched (Overlap)</option>' +
-                            '</select></div>' +
-                            '<div><label>Target (Collection / Tags / Genre)</label>' + targetHtml + '</div>' +
-                            extraFieldsHtml +
+                        '<div style="flex:1;min-width:0;">' +
+                            '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;">' +
+                                '<div><select class="row-type" style="width:100%;box-sizing:border-box;padding:9px;background:#181818;color:#fff;border:1px solid #444;border-radius:4px;">' +
+                                    '<option value="Collection"' + (row.RowType === "Collection" ? " selected" : "") + '>Collection / Playlist</option>' +
+                                    '<option value="Tag"' + (row.RowType === "Tag" || row.RowType === "Keyword" ? " selected" : "") + '>Tag Match</option>' +
+                                    '<option value="Genre"' + (row.RowType === "Genre" ? " selected" : "") + '>Specific Genre</option>' +
+                                    '<option value="TopGenre1"' + (row.RowType === "TopGenre1" || row.RowType === "TopGenre" ? " selected" : "") + '>User Top Genre #1</option>' +
+                                    '<option value="TopGenre2"' + (row.RowType === "TopGenre2" ? " selected" : "") + '>User Top Genre #2</option>' +
+                                    '<option value="TopGenre3"' + (row.RowType === "TopGenre3" ? " selected" : "") + '>User Top Genre #3</option>' +
+                                    '<option value="BecauseYouWatched"' + (row.RowType === "BecauseYouWatched" ? " selected" : "") + '>Because You Watched</option>' +
+                                '</select></div>' +
+                                '<div><input type="text" class="row-title" value="' + (row.Title || "") + '" placeholder="Row Title" style="width:100%;box-sizing:border-box;padding:9px;background:#181818;color:#fff;border:1px solid #444;border-radius:4px;" /></div>' +
+                                '<div><select class="row-scope" style="width:100%;box-sizing:border-box;padding:9px;background:#181818;color:#fff;border:1px solid #444;border-radius:4px;">' +
+                                    '<option value="OwnedOnly"' + (row.Scope === "OwnedOnly" ? " selected" : "") + '>Owned Libraries Only</option>' +
+                                    '<option value="DiscoverOnly"' + (row.Scope === "DiscoverOnly" ? " selected" : "") + '>Discover Folder Only</option>' +
+                                '</select></div>' +
+                            '</div>' +
+                            secondRowHtml +
+                        '</div>' +
+                        '<div style="display:flex;align-items:center;">' +
+                            '<button type="button" class="btn-del" style="color:#ff6b6b;padding:6px 10px;cursor:pointer;">Remove</button>' +
                         '</div>';
 
                     card.querySelector(".row-title").oninput = function (e) { currentRows[idx].Title = e.target.value; };
-                    card.querySelector(".row-type").onchange = function (e) { currentRows[idx].RowType = e.target.value; renderRows(); };
-                    card.querySelector(".row-target").onchange = function (e) {
-                        currentRows[idx].TargetValue = e.target.value;
-                        if (currentRows[idx].RowType === "Collection" && !currentRows[idx].Title) {
-                            var match = collectionsList.find(function (c) { return c.Id === e.target.value; });
-                            if (match) currentRows[idx].Title = match.Name;
-                            renderRows();
-                        }
+                    card.querySelector(".row-type").onchange = function (e) {
+                        var newType = e.target.value;
+                        currentRows[idx].RowType = newType;
+                        currentRows[idx].GroupIntoCollections = (newType !== "Collection");
+                        renderRows();
                     };
-                    if (!isCollection) {
-                        card.querySelector(".row-exclude").oninput = function (e) { currentRows[idx].ExcludeTags = e.target.value; };
-                        card.querySelector(".row-scope").onchange = function (e) { currentRows[idx].Scope = e.target.value; };
-                        card.querySelector(".row-group").onchange = function (e) { currentRows[idx].GroupIntoCollections = e.target.checked; };
+                    card.querySelector(".row-scope").onchange = function (e) { currentRows[idx].Scope = e.target.value; };
+
+                    var targetEl = card.querySelector(".row-target");
+                    if (targetEl) {
+                        targetEl.onchange = function (e) {
+                            currentRows[idx].TargetValue = e.target.value;
+                            if (currentRows[idx].RowType === "Collection" && !currentRows[idx].Title) {
+                                var match = collectionsList.find(function (c) { return c.Id === e.target.value; });
+                                if (match) currentRows[idx].Title = match.Name;
+                                renderRows();
+                            }
+                        };
                     }
+
+                    var excludeEl = card.querySelector(".row-exclude");
+                    if (excludeEl) {
+                        excludeEl.oninput = function (e) { currentRows[idx].ExcludeTags = e.target.value; };
+                    }
+
+                    var groupEl = card.querySelector(".row-group");
+                    if (groupEl) {
+                        groupEl.onchange = function (e) { currentRows[idx].GroupIntoCollections = e.target.checked; };
+                    }
+
                     card.querySelector(".btn-up").onclick = function () { if (idx > 0) { var t = currentRows[idx - 1]; currentRows[idx - 1] = currentRows[idx]; currentRows[idx] = t; renderRows(); } };
                     card.querySelector(".btn-down").onclick = function () { if (idx < currentRows.length - 1) { var t = currentRows[idx + 1]; currentRows[idx + 1] = currentRows[idx]; currentRows[idx] = t; renderRows(); } };
                     card.querySelector(".btn-del").onclick = function () { currentRows.splice(idx, 1); renderRows(); };
