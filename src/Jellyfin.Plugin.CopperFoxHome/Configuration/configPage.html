@@ -54,9 +54,13 @@
                             return '<option value="' + c.Id + '"' + (row.TargetValue === c.Id ? ' selected' : '') + '>' + c.Name + ' (' + c.Type + ')</option>';
                         }).join("");
 
+                    var placeholderText = "Auto-generated from watch history";
+                    if (row.RowType === "Tag" || row.RowType === "Keyword") placeholderText = "e.g. thanksgiving, christmas, winter";
+                    if (row.RowType === "Genre") placeholderText = "e.g. Horror, Comedy, Sci-Fi";
+
                     var targetHtml = row.RowType === "Collection"
                         ? '<select class="row-target" style="width:100%;padding:8px;margin-top:4px;background:#181818;color:#fff;border:1px solid #444;">' + optionsHtml + '</select>'
-                        : '<input type="text" class="row-target" value="' + (row.TargetValue || "") + '" placeholder="' + (row.RowType === "Keyword" ? "e.g. Christmas" : "Auto-generated from watch history") + '" style="width:100%;padding:8px;margin-top:4px;background:#181818;color:#fff;border:1px solid #444;" />';
+                        : '<input type="text" class="row-target" value="' + (row.TargetValue || "") + '" placeholder="' + placeholderText + '" style="width:100%;padding:8px;margin-top:4px;background:#181818;color:#fff;border:1px solid #444;" />';
 
                     card.innerHTML =
                         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">' +
@@ -71,11 +75,14 @@
                             '<div><label>Row Title</label><input type="text" class="row-title" value="' + (row.Title || "") + '" style="width:100%;padding:8px;margin-top:4px;background:#181818;color:#fff;border:1px solid #444;" /></div>' +
                             '<div><label>Row Type</label><select class="row-type" style="width:100%;padding:8px;margin-top:4px;background:#181818;color:#fff;border:1px solid #444;">' +
                                 '<option value="Collection"' + (row.RowType === "Collection" ? " selected" : "") + '>Collection / Playlist</option>' +
-                                '<option value="TopGenre"' + (row.RowType === "TopGenre" ? " selected" : "") + '>Top Genre For You (Auto)</option>' +
-                                '<option value="BecauseYouWatched"' + (row.RowType === "BecauseYouWatched" ? " selected" : "") + '>Because You Watched (Auto)</option>' +
-                                '<option value="Keyword"' + (row.RowType === "Keyword" ? " selected" : "") + '>Keyword / Title Match</option>' +
+                                '<option value="Tag"' + (row.RowType === "Tag" || row.RowType === "Keyword" ? " selected" : "") + '>Tag Match (Comma-Separated)</option>' +
+                                '<option value="Genre"' + (row.RowType === "Genre" ? " selected" : "") + '>Specific Genre</option>' +
+                                '<option value="TopGenre1"' + (row.RowType === "TopGenre1" || row.RowType === "TopGenre" ? " selected" : "") + '>User Top Genre #1 (Auto)</option>' +
+                                '<option value="TopGenre2"' + (row.RowType === "TopGenre2" ? " selected" : "") + '>User Top Genre #2 (Auto)</option>' +
+                                '<option value="TopGenre3"' + (row.RowType === "TopGenre3" ? " selected" : "") + '>User Top Genre #3 (Auto)</option>' +
+                                '<option value="BecauseYouWatched"' + (row.RowType === "BecauseYouWatched" ? " selected" : "") + '>Because You Watched (Overlap)</option>' +
                             '</select></div>' +
-                            '<div><label>Collection / Keyword Target</label>' + targetHtml + '</div>' +
+                            '<div><label>Target (Collection / Tags / Genre)</label>' + targetHtml + '</div>' +
                             '<div><label>Library Scope</label><select class="row-scope" style="width:100%;padding:8px;margin-top:4px;background:#181818;color:#fff;border:1px solid #444;">' +
                                 '<option value="OwnedOnly"' + (row.Scope === "OwnedOnly" ? " selected" : "") + '>Owned Libraries Only</option>' +
                                 '<option value="DiscoverOnly"' + (row.Scope === "DiscoverOnly" ? " selected" : "") + '>Discover Folder Only</option>' +

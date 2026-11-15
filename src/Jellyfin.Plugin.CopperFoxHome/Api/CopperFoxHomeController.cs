@@ -49,10 +49,17 @@ public class CopperFoxHomeController : ControllerBase
         Guid.TryParse(config.DiscoverLibraryId, out var discoverLibGuid);
         var resultRows = new List<object>();
 
+        // Pre-populate any explicitly assigned Genre rows so TopGenre1/2/3 never duplicate them
+        var usedGenres = new HashSet<string>(
+            config.Rows
+                .Where(r => string.Equals(r.RowType, "Genre", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(r.TargetValue))
+                .Select(r => r.TargetValue.Trim()),
+            StringComparer.OrdinalIgnoreCase);
+
         for (int i = 0; i < config.Rows.Count; i++)
         {
             var rowDef = config.Rows[i];
-            var items = ResolveRowItems(rowDef, user, discoverLibGuid, out var dynamicTitle);
+            var items = ResolveRowItems(rowDef, user, discoverLibGuid, usedGenres, out var dynamicTitle);
             if (items.Count == 0 && !string.Equals(rowDef.RowType, "Collection", StringComparison.OrdinalIgnoreCase))
             {
                 continue;
@@ -86,6 +93,7 @@ public class CopperFoxHomeController : ControllerBase
         CustomHomeRowDefinition rowDef,
         Jellyfin.Database.Implementations.Entities.User user,
         Guid discoverLibGuid,
+        HashSet<string> usedGenres,
         out string dynamicTitle)
     {
         dynamicTitle = rowDef.Title;
@@ -93,23 +101,29 @@ public class CopperFoxHomeController : ControllerBase
 
         if (string.Equals(rowDef.RowType, "Collection", StringComparison.OrdinalIgnoreCase))
         {
-            if (!Guid.TryParse(rowDef.TargetValue, out var parentId))
-            {
-                return new List<BaseItem>();
-            }
+            return new List<BaseItem>();
+        }
 
-            var query = new InternalItemsQuery(user)
+        if (string.Equals(rowDef.RowType, "Genre", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(rowDef.TargetValue))
+        {
+            var genreName = rowDef.TargetValue.Trim();
+            usedGenres.Add(genreName);
+            dynamicTitle = string.IsNullOrWhiteSpace(rowDef.Title) ? genreName : rowDef.Title;
+
+            var genreQuery = new InternalItemsQuery(user)
             {
-                ParentId = parentId,
+                Recursive = true,
+                IncludeItemTypes = new[] { BaseItemKind.Movie, BaseItemKind.Series },
+                Genres = new[] { genreName },
+                OrderBy = new[] { (ItemSortBy.Random, SortOrder.Ascending) },
                 Limit = limit * 2
             };
-            var items = _libraryManager.GetItemList(query);
-            return ApplyScopeFilter(items, rowDef.Scope, discoverLibGuid)
+            return ApplyScopeFilter(_libraryManager.GetItemList(genreQuery), rowDef.Scope, discoverLibGuid)
                 .Take(limit)
                 .ToList();
         }
 
-        if (string.Equals(rowDef.RowType, "TopGenre", StringComparison.OrdinalIgnoreCase))
+        if (rowDef.RowType.StartsWith("TopGenre", StringComparison.OrdinalIgnoreCase))
         {
             var historyQuery = new InternalItemsQuery(user)
             {
@@ -117,32 +131,34 @@ public class CopperFoxHomeController : ControllerBase
                 IsPlayed = true,
                 IncludeItemTypes = new[] { BaseItemKind.Movie, BaseItemKind.Series },
                 OrderBy = new[] { (ItemSortBy.DatePlayed, SortOrder.Descending) },
-                Limit = 40
+                Limit = 60
             };
             var played = ApplyScopeFilter(_libraryManager.GetItemList(historyQuery), "OwnedOnly", discoverLibGuid);
-            var topGenre = played
+            var rankedGenres = played
                 .SelectMany(x => x.Genres ?? Array.Empty<string>())
                 .Where(g => !string.IsNullOrWhiteSpace(g))
                 .GroupBy(g => g, StringComparer.OrdinalIgnoreCase)
                 .OrderByDescending(g => g.Count())
                 .Select(g => g.Key)
-                .FirstOrDefault();
+                .ToList();
 
-            if (string.IsNullOrEmpty(topGenre))
+            var chosenGenre = rankedGenres.FirstOrDefault(g => !usedGenres.Contains(g));
+            if (string.IsNullOrEmpty(chosenGenre))
             {
                 return new List<BaseItem>();
             }
 
-            dynamicTitle = string.IsNullOrWhiteSpace(rowDef.Title) || rowDef.Title == "Top Genre For You"
-                ? $"Top {topGenre} Picks For You"
-                : rowDef.Title.Replace("{Genre}", topGenre);
+            usedGenres.Add(chosenGenre);
+            dynamicTitle = string.IsNullOrWhiteSpace(rowDef.Title)
+                ? $"Top {chosenGenre} Picks For You"
+                : rowDef.Title.Replace("{Genre}", chosenGenre);
 
             var recQuery = new InternalItemsQuery(user)
             {
                 Recursive = true,
                 IsPlayed = false,
                 IncludeItemTypes = new[] { BaseItemKind.Movie, BaseItemKind.Series },
-                Genres = new[] { topGenre },
+                Genres = new[] { chosenGenre },
                 OrderBy = new[] { (ItemSortBy.Random, SortOrder.Ascending) },
                 Limit = limit * 2
             };
@@ -169,32 +185,55 @@ public class CopperFoxHomeController : ControllerBase
             }
 
             dynamicTitle = $"Because You Watched {seed.Name}";
-            var similarQuery = new InternalItemsQuery(user)
+            var seedGenres = new HashSet<string>(seed.Genres, StringComparer.OrdinalIgnoreCase);
+            var seedTags = new HashSet<string>(seed.Tags ?? Array.Empty<string>(), StringComparer.OrdinalIgnoreCase);
+
+            var poolQuery = new InternalItemsQuery(user)
             {
                 Recursive = true,
                 IsPlayed = false,
                 IncludeItemTypes = new[] { seed.GetBaseItemKind() },
                 Genres = seed.Genres,
-                OrderBy = new[] { (ItemSortBy.Random, SortOrder.Ascending) },
-                Limit = limit * 2
+                Limit = 150
             };
-            return ApplyScopeFilter(_libraryManager.GetItemList(similarQuery), rowDef.Scope, discoverLibGuid)
+
+            return ApplyScopeFilter(_libraryManager.GetItemList(poolQuery), rowDef.Scope, discoverLibGuid)
                 .Where(x => x.Id != seed.Id)
+                .Select(x =>
+                {
+                    var genreOverlap = (x.Genres ?? Array.Empty<string>()).Count(g => seedGenres.Contains(g));
+                    var tagOverlap = (x.Tags ?? Array.Empty<string>()).Count(t => seedTags.Contains(t));
+                    return new { Item = x, Score = (tagOverlap * 3) + genreOverlap };
+                })
+                .Where(x => x.Score >= Math.Min(2, seedGenres.Count))
+                .OrderByDescending(x => x.Score)
+                .ThenBy(_ => Random.Shared.Next())
+                .Select(x => x.Item)
                 .Take(limit)
                 .ToList();
         }
 
-        if (string.Equals(rowDef.RowType, "Keyword", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(rowDef.TargetValue))
+        if ((string.Equals(rowDef.RowType, "Tag", StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(rowDef.RowType, "Keyword", StringComparison.OrdinalIgnoreCase)) &&
+            !string.IsNullOrWhiteSpace(rowDef.TargetValue))
         {
-            var kwQuery = new InternalItemsQuery(user)
+            var tagList = rowDef.TargetValue
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+            if (tagList.Length == 0)
+            {
+                return new List<BaseItem>();
+            }
+
+            var tagQuery = new InternalItemsQuery(user)
             {
                 Recursive = true,
                 IncludeItemTypes = new[] { BaseItemKind.Movie, BaseItemKind.Series },
-                SearchTerm = rowDef.TargetValue,
+                Tags = tagList,
                 OrderBy = new[] { (ItemSortBy.Random, SortOrder.Ascending) },
                 Limit = limit * 2
             };
-            return ApplyScopeFilter(_libraryManager.GetItemList(kwQuery), rowDef.Scope, discoverLibGuid)
+            return ApplyScopeFilter(_libraryManager.GetItemList(tagQuery), rowDef.Scope, discoverLibGuid)
                 .Take(limit)
                 .ToList();
         }
