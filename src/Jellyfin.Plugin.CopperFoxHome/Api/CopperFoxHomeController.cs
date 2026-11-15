@@ -165,7 +165,7 @@ public class CopperFoxHomeController : ControllerBase
 
             usedGenres.Add(chosenGenre);
             dynamicTitle = string.IsNullOrWhiteSpace(rowDef.Title)
-                ? $"Top {chosenGenre} Picks For You"
+                ? chosenGenre
                 : rowDef.Title.Replace("{Genre}", chosenGenre);
 
             var recQuery = new InternalItemsQuery(user)
