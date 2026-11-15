@@ -93,24 +93,15 @@ public class CopperFoxHomeController : ControllerBase
                 return new List<BaseItem>();
             }
 
-            var item = _libraryManager.GetItemById(parentId);
-            if (item is MediaBrowser.Controller.Entities.Movies.BoxSet boxSet)
+            var query = new InternalItemsQuery(user)
             {
-                var linked = boxSet.GetLinkedChildren();
-                return ApplyScopeFilter(linked, rowDef.Scope, discoverLibGuid)
-                    .Take(limit)
-                    .ToList();
-            }
-
-            if (item is Folder folder)
-            {
-                var children = folder.GetChildren(user, true);
-                return ApplyScopeFilter(children, rowDef.Scope, discoverLibGuid)
-                    .Take(limit)
-                    .ToList();
-            }
-
-            return new List<BaseItem>();
+                ParentId = parentId,
+                Limit = limit * 2
+            };
+            var items = _libraryManager.GetItemList(query);
+            return ApplyScopeFilter(items, rowDef.Scope, discoverLibGuid)
+                .Take(limit)
+                .ToList();
         }
 
         if (string.Equals(rowDef.RowType, "TopGenre", StringComparison.OrdinalIgnoreCase))
