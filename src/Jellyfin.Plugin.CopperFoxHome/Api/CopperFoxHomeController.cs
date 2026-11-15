@@ -297,19 +297,59 @@ public class CopperFoxHomeController : ControllerBase
         return list.Take(limit).ToList();
     }
 
-    private static IEnumerable<BaseItem> ApplyScopeFilter(IEnumerable<BaseItem> items, string scope, Guid discoverLibGuid)
+    private IEnumerable<BaseItem> ApplyScopeFilter(IEnumerable<BaseItem> items, string scope, Guid discoverLibGuid)
     {
         if (discoverLibGuid == Guid.Empty)
         {
-            return items;
+            return string.Equals(scope, "DiscoverOnly", StringComparison.OrdinalIgnoreCase)
+                ? Enumerable.Empty<BaseItem>()
+                : items;
+        }
+
+        var discoverItem = _libraryManager.GetItemById(discoverLibGuid);
+        var discoverPaths = new List<string>();
+        if (discoverItem != null)
+        {
+            if (!string.IsNullOrWhiteSpace(discoverItem.Path))
+            {
+                discoverPaths.Add(discoverItem.Path.TrimEnd('/', '\\') + "/");
+                discoverPaths.Add(discoverItem.Path.TrimEnd('/', '\\') + "\\");
+            }
+
+            if (discoverItem is Folder folder)
+            {
+                foreach (var loc in folder.PhysicalLocations ?? Array.Empty<string>())
+                {
+                    if (!string.IsNullOrWhiteSpace(loc))
+                    {
+                        discoverPaths.Add(loc.TrimEnd('/', '\\') + "/");
+                        discoverPaths.Add(loc.TrimEnd('/', '\\') + "\\");
+                    }
+                }
+            }
+        }
+
+        bool IsInDiscover(BaseItem item)
+        {
+            if (item.GetAncestorIds().Contains(discoverLibGuid))
+            {
+                return true;
+            }
+
+            if (discoverPaths.Count > 0 && !string.IsNullOrWhiteSpace(item.Path))
+            {
+                return discoverPaths.Any(p => item.Path.StartsWith(p, StringComparison.OrdinalIgnoreCase));
+            }
+
+            return false;
         }
 
         if (string.Equals(scope, "DiscoverOnly", StringComparison.OrdinalIgnoreCase))
         {
-            return items.Where(i => i.GetAncestorIds().Contains(discoverLibGuid));
+            return items.Where(IsInDiscover);
         }
 
-        return items.Where(i => !i.GetAncestorIds().Contains(discoverLibGuid));
+        return items.Where(i => !IsInDiscover(i));
     }
 
     private Guid GetCurrentUserId()
