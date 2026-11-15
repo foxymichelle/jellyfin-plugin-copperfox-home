@@ -1,0 +1,27 @@
+name: Build and Release Plugin
+
+on: [push, workflow_dispatch]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Build & Publish Plugin
+        uses: jinya-io/jellyfin-plugin-builder@v2
+        with:
+          solution-file: src/Jellyfin.Plugin.CopperFoxHome.sln
+          release-version: 1.0.${{ github.run_number }}.0
+          target-abi: 10.11.0.0
+          github-token: ${{ secrets.GITHUB_TOKEN }}
