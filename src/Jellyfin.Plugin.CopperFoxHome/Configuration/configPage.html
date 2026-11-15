@@ -113,7 +113,7 @@
                     card.style.cssText = "display:flex;align-items:stretch;gap:16px;border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:14px 16px;margin-bottom:14px;background:rgba(0,0,0,0.2);";
 
                     var isCollection = row.RowType === "Collection";
-                    var isSystemRow = row.RowType === "MyMedia" || row.RowType === "ContinueAndUpNext" || row.RowType === "LatestMedia";
+                    var isSystemRow = row.RowType === "MyMedia" || row.RowType === "ContinueAndUpNext" || row.RowType === "LatestMovies" || row.RowType === "LatestShows";
                     var isAuto = isSystemRow || row.RowType === "TopGenre1" || row.RowType === "TopGenre2" || row.RowType === "TopGenre3" || row.RowType === "TopGenre" || row.RowType === "BecauseYouWatched";
                     var imgStyle = row.ImageStyle || "Poster";
 
@@ -181,7 +181,8 @@
                                 '<div><select class="row-type" style="width:100%;box-sizing:border-box;padding:9px;font-size:14px;background:#181818;color:#fff;border:3px solid #666;border-radius:4px;">' +
                                     '<option value="MyMedia"' + (row.RowType === "MyMedia" ? " selected" : "") + '>My Media</option>' +
                                     '<option value="ContinueAndUpNext"' + (row.RowType === "ContinueAndUpNext" ? " selected" : "") + '>Continue &amp; Up Next</option>' +
-                                    '<option value="LatestMedia"' + (row.RowType === "LatestMedia" ? " selected" : "") + '>Latest Added</option>' +
+                                    '<option value="LatestMovies"' + (row.RowType === "LatestMovies" || row.RowType === "LatestMedia" ? " selected" : "") + '>Latest Movies</option>' +
+                                    '<option value="LatestShows"' + (row.RowType === "LatestShows" ? " selected" : "") + '>Latest Shows</option>' +
                                     '<option value="Collection"' + (row.RowType === "Collection" ? " selected" : "") + '>Collection / Playlist</option>' +
                                     '<option value="Tag"' + (row.RowType === "Tag" || row.RowType === "Keyword" ? " selected" : "") + '>Tag Match</option>' +
                                     '<option value="Genre"' + (row.RowType === "Genre" ? " selected" : "") + '>Specific Genre</option>' +
@@ -205,7 +206,8 @@
                         var newType = e.target.value;
                         currentRows[idx].RowType = newType;
                         currentRows[idx].GroupIntoCollections = (newType !== "Collection" && newType !== "MyMedia" && newType !== "ContinueAndUpNext" && newType !== "LatestMedia");
-                        if (newType === "MyMedia" || newType === "ContinueAndUpNext" || newType === "LatestMedia") {
+                        currentRows[idx].GroupIntoCollections = (newType !== "Collection" && newType !== "MyMedia" && newType !== "ContinueAndUpNext" && newType !== "LatestMovies" && newType !== "LatestShows");
+                        if (newType === "MyMedia" || newType === "ContinueAndUpNext" || newType === "LatestMovies" || newType === "LatestShows") {
                             currentRows[idx].ImageStyle = "Thumb";
                         }
                         renderRows();

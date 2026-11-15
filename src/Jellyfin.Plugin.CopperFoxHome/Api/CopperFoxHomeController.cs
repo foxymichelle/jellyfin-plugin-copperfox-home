@@ -63,8 +63,8 @@ public class CopperFoxHomeController : ControllerBase
                 string.Equals(rowDef.RowType, "Collection", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(rowDef.RowType, "MyMedia", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(rowDef.RowType, "ContinueAndUpNext", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(rowDef.RowType, "LatestMedia", StringComparison.OrdinalIgnoreCase);
-
+                string.Equals(rowDef.RowType, "LatestMovies", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(rowDef.RowType, "LatestShows", StringComparison.OrdinalIgnoreCase);
             if (items.Count == 0 && !isClientFetched)
             {
                 continue;
@@ -94,6 +94,7 @@ public class CopperFoxHomeController : ControllerBase
 
         return Ok(new
         {
+            discoverLibraryId = config.DiscoverLibraryId ?? string.Empty,
             myMediaOrder = config.MyMediaLibraryOrder ?? new List<string>(),
             excludedMyMediaIds = config.ExcludedMyMediaIds ?? new List<string>(),
             rows = resultRows
@@ -113,7 +114,8 @@ public class CopperFoxHomeController : ControllerBase
         if (string.Equals(rowDef.RowType, "Collection", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(rowDef.RowType, "MyMedia", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(rowDef.RowType, "ContinueAndUpNext", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(rowDef.RowType, "LatestMedia", StringComparison.OrdinalIgnoreCase))
+            string.Equals(rowDef.RowType, "LatestMovies", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(rowDef.RowType, "LatestShows", StringComparison.OrdinalIgnoreCase))
         {
             return new List<BaseItem>();
         }
