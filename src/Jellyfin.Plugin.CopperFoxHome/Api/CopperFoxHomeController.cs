@@ -95,8 +95,7 @@ public class CopperFoxHomeController : ControllerBase
 
             var query = new InternalItemsQuery(user)
             {
-                AncestorIds = new[] { parentId },
-                Recursive = true,
+                ParentIds = new[] { parentId },
                 Limit = limit * 2
             };
             var items = _libraryManager.GetItemList(query);
