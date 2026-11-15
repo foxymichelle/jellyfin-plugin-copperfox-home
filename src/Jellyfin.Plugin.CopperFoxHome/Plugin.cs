@@ -33,6 +33,11 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
                 Name = Name,
                 EmbeddedResourcePath = $"{GetType().Namespace}.Configuration.configPage.html",
                 EnableInMainMenu = true
+            },
+            new PluginPageInfo
+            {
+                Name = "copperfoxhomejs",
+                EmbeddedResourcePath = $"{GetType().Namespace}.Configuration.configPage.js"
             }
         };
     }
