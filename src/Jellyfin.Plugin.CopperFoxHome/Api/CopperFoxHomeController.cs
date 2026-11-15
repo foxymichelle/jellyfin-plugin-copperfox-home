@@ -310,20 +310,6 @@ public class CopperFoxHomeController : ControllerBase
             list = grouped;
         }
 
-            var seenIds = new HashSet<Guid>();
-            var grouped = new List<BaseItem>();
-
-            foreach (var item in list)
-            {
-                var displayItem = movieIdToBoxSet.TryGetValue(item.Id, out var parentBoxSet) ? parentBoxSet : item;
-                if (seenIds.Add(displayItem.Id))
-                {
-                    grouped.Add(displayItem);
-                }
-            }
-            list = grouped;
-        }
-
         if (shuffle)
         {
             list = list.OrderBy(_ => Random.Shared.Next()).ToList();
