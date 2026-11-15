@@ -88,6 +88,7 @@ public class CopperFoxHomeController : ControllerBase
                 int? episodeCount = item is MediaBrowser.Controller.Entities.TV.Series series
                     ? series.GetEpisodes(user, new DtoOptions(false), false).Count()
                     : null;
+                var userData = _userDataManager.GetUserData(user, item);
 
                 return new
                 {
@@ -97,6 +98,14 @@ public class CopperFoxHomeController : ControllerBase
                     Overview = item.Overview,
                     Genres = item.Genres ?? Array.Empty<string>(),
                     PrimaryImageAspectRatio = 0.6666667,
+                    RunTimeTicks = item.RunTimeTicks,
+                    BackdropImageTags = item.BackdropImageTags ?? Array.Empty<string>(),
+                    UserData = new
+                    {
+                        Played = userData.Played,
+                        IsFavorite = userData.IsFavorite,
+                        PlaybackPositionTicks = userData.PlaybackPositionTicks
+                    },
                     IsDiscover = string.Equals(rowDef.Scope, "DiscoverOnly", StringComparison.OrdinalIgnoreCase),
                     ChildCount = childCount,
                     RecursiveItemCount = episodeCount
