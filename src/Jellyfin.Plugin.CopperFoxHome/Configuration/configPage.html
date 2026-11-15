@@ -34,6 +34,125 @@
             </form>
         </div>
     </div>
+        <script type="text/javascript">
+        (function () {
+            var pluginId = "c099e7f0-4a1b-4c8d-9e2a-7f1b3c5d8e9a";
+            var collectionsList = [];
+            var currentRows = [];
+
+            function renderRows() {
+                var container = document.getElementById("rowsContainer");
+                if (!container) return;
+                container.innerHTML = "";
+
+                currentRows.forEach(function (row, idx) {
+                    var card = document.createElement("div");
+                    card.style.cssText = "border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:16px;margin-bottom:14px;background:rgba(0,0,0,0.2);";
+
+                    var optionsHtml = '<option value="">-- Select Collection or Playlist --</option>' +
+                        collectionsList.map(function (c) {
+                            return '<option value="' + c.Id + '"' + (row.TargetValue === c.Id ? ' selected' : '') + '>' + c.Name + ' (' + c.Type + ')</option>';
+                        }).join("");
+
+                    var targetHtml = row.RowType === "Collection"
+                        ? '<select class="row-target" style="width:100%;padding:8px;margin-top:4px;background:#181818;color:#fff;border:1px solid #444;">' + optionsHtml + '</select>'
+                        : '<input type="text" class="row-target" value="' + (row.TargetValue || "") + '" placeholder="' + (row.RowType === "Keyword" ? "e.g. Christmas" : "Auto-generated from watch history") + '" style="width:100%;padding:8px;margin-top:4px;background:#181818;color:#fff;border:1px solid #444;" />';
+
+                    card.innerHTML =
+                        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">' +
+                            '<strong>Row #' + (idx + 1) + '</strong>' +
+                            '<div>' +
+                                '<button type="button" class="btn-up" style="margin-right:6px;padding:4px 10px;cursor:pointer;">↑</button>' +
+                                '<button type="button" class="btn-down" style="margin-right:6px;padding:4px 10px;cursor:pointer;">↓</button>' +
+                                '<button type="button" class="btn-del" style="color:#ff6b6b;padding:4px 10px;cursor:pointer;">Remove</button>' +
+                            '</div>' +
+                        '</div>' +
+                        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">' +
+                            '<div><label>Row Title</label><input type="text" class="row-title" value="' + (row.Title || "") + '" style="width:100%;padding:8px;margin-top:4px;background:#181818;color:#fff;border:1px solid #444;" /></div>' +
+                            '<div><label>Row Type</label><select class="row-type" style="width:100%;padding:8px;margin-top:4px;background:#181818;color:#fff;border:1px solid #444;">' +
+                                '<option value="Collection"' + (row.RowType === "Collection" ? " selected" : "") + '>Collection / Playlist</option>' +
+                                '<option value="TopGenre"' + (row.RowType === "TopGenre" ? " selected" : "") + '>Top Genre For You (Auto)</option>' +
+                                '<option value="BecauseYouWatched"' + (row.RowType === "BecauseYouWatched" ? " selected" : "") + '>Because You Watched (Auto)</option>' +
+                                '<option value="Keyword"' + (row.RowType === "Keyword" ? " selected" : "") + '>Keyword / Title Match</option>' +
+                            '</select></div>' +
+                            '<div><label>Collection / Keyword Target</label>' + targetHtml + '</div>' +
+                            '<div><label>Library Scope</label><select class="row-scope" style="width:100%;padding:8px;margin-top:4px;background:#181818;color:#fff;border:1px solid #444;">' +
+                                '<option value="OwnedOnly"' + (row.Scope === "OwnedOnly" ? " selected" : "") + '>Owned Libraries Only</option>' +
+                                '<option value="DiscoverOnly"' + (row.Scope === "DiscoverOnly" ? " selected" : "") + '>Discover Folder Only</option>' +
+                            '</select></div>' +
+                        '</div>';
+
+                    card.querySelector(".row-title").oninput = function (e) { currentRows[idx].Title = e.target.value; };
+                    card.querySelector(".row-type").onchange = function (e) { currentRows[idx].RowType = e.target.value; renderRows(); };
+                    card.querySelector(".row-target").onchange = function (e) {
+                        currentRows[idx].TargetValue = e.target.value;
+                        if (currentRows[idx].RowType === "Collection" && !currentRows[idx].Title) {
+                            var match = collectionsList.find(function (c) { return c.Id === e.target.value; });
+                            if (match) currentRows[idx].Title = match.Name;
+                            renderRows();
+                        }
+                    };
+                    card.querySelector(".row-scope").onchange = function (e) { currentRows[idx].Scope = e.target.value; };
+                    card.querySelector(".btn-up").onclick = function () { if (idx > 0) { var t = currentRows[idx - 1]; currentRows[idx - 1] = currentRows[idx]; currentRows[idx] = t; renderRows(); } };
+                    card.querySelector(".btn-down").onclick = function () { if (idx < currentRows.length - 1) { var t = currentRows[idx + 1]; currentRows[idx + 1] = currentRows[idx]; currentRows[idx] = t; renderRows(); } };
+                    card.querySelector(".btn-del").onclick = function () { currentRows.splice(idx, 1); renderRows(); };
+
+                    container.appendChild(card);
+                });
+            }
+
+            // 1. Bind Add Row & Save IMMEDIATELY before any async calls
+            var addBtn = document.getElementById("btnAddRow");
+            if (addBtn) {
+                addBtn.onclick = function () {
+                    currentRows.push({ Title: "", RowType: "Collection", TargetValue: "", Scope: "OwnedOnly", SortBy: "SortName", SortOrder: "Ascending", Limit: 25 });
+                    renderRows();
+                };
+            }
+
+            var form = document.getElementById("CopperFoxHomeConfigForm");
+            if (form) {
+                form.onsubmit = function (e) {
+                    e.preventDefault();
+                    Dashboard.showLoadingMsg();
+                    ApiClient.getPluginConfiguration(pluginId).then(function (config) {
+                        config.DiscoverLibraryId = document.getElementById("selectDiscoverLibrary").value;
+                        config.Rows = currentRows;
+                        return ApiClient.updatePluginConfiguration(pluginId, config);
+                    }).then(function () {
+                        Dashboard.processPluginConfigurationUpdateResult();
+                    }).catch(function (err) {
+                        Dashboard.hideLoadingMsg();
+                        console.error(err);
+                    });
+                    return false;
+                };
+            }
+
+            // 2. Load saved config & dropdown options in background
+            var userId = ApiClient.getCurrentUserId();
+            Promise.all([
+                ApiClient.getPluginConfiguration(pluginId),
+                ApiClient.getUserViews(userId),
+                ApiClient.getItems(userId, { IncludeItemTypes: "BoxSet,Playlist", Recursive: true, SortBy: "SortName" })
+            ]).then(function (results) {
+                var config = results[0] || {};
+                var views = (results[1] && results[1].Items) || [];
+                collectionsList = (results[2] && results[2].Items) || [];
+
+                var libSelect = document.getElementById("selectDiscoverLibrary");
+                if (libSelect) {
+                    libSelect.innerHTML = '<option value="">None (No Discover Folder)</option>' +
+                        views.map(function (v) { return '<option value="' + v.Id + '">' + v.Name + '</option>'; }).join("");
+                    libSelect.value = config.DiscoverLibraryId || "";
+                }
+                currentRows = Array.isArray(config.Rows) ? config.Rows : [];
+                renderRows();
+            }).catch(function (err) {
+                console.error("CopperFox Home load error:", err);
+            });
+        })();
+    </script>
 </div>
 </body>
 </html>
