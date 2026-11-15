@@ -77,7 +77,8 @@ public class CopperFoxHomeController : ControllerBase
                 Type = item.GetBaseItemKind().ToString(),
                 Overview = item.Overview,
                 Genres = item.Genres ?? Array.Empty<string>(),
-                PrimaryImageAspectRatio = 0.6666667
+                PrimaryImageAspectRatio = 0.6666667,
+                IsDiscover = string.Equals(rowDef.Scope, "DiscoverOnly", StringComparison.OrdinalIgnoreCase)
             }).ToList();
 
             resultRows.Add(new
