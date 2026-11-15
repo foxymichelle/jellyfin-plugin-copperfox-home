@@ -29,7 +29,10 @@ jobs:
           VERSION="1.0.${{ github.run_number }}.0"
           ZIP_NAME="copperfox-home_${VERSION}.zip"
           TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          DOWNLOAD_URL="https://github.com{VERSION}/${ZIP_NAME}"
+          REPO_PATH="foxymichelle/jellyfin-plugin-copperfox-home"
+          RELEASE_PATH="releases/download/v"
+          DOWNLOAD_URL="https://github.com"$REPO_PATH"/"$RELEASE_PATH$VERSION"/"$ZIP_NAME
+
 
           printf '{\n  "guid": "c099e7f0-4a1b-4c8d-9e2a-7f1b3c5d8e9a",\n  "name": "CopperFox Home",\n  "description": "Curated and personalized home screen rows for Desktop and Starfin on Roku.",\n  "overview": "Curated and personalized home screen rows for Desktop and Starfin on Roku.",\n  "owner": "foxymichelle",\n  "category": "General",\n  "version": "%s",\n  "targetAbi": "10.12.0.0",\n  "timestamp": "%s",\n  "status": "Active"\n}\n' "$VERSION" "$TIMESTAMP" > publish/meta.json
 
