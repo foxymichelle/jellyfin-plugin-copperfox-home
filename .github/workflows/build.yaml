@@ -29,7 +29,7 @@ jobs:
           VERSION="1.0.${{ github.run_number }}.0"
           ZIP_NAME="copperfox-home_${VERSION}.zip"
           TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          REPO_PATH="foxymichelle/jellyfin-plugin-copperfox-home"
+          REPO_PATH="/foxymichelle/jellyfin-plugin-copperfox-home"
           RELEASE_PATH="releases/download/v"
           DOWNLOAD_URL="https://github.com"$REPO_PATH"/"$RELEASE_PATH$VERSION"/"$ZIP_NAME
 
