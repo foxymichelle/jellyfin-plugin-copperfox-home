@@ -64,14 +64,14 @@ public class CopperFoxHomeController : ControllerBase
             };
 
             var dtos = items.Select(item => new
-         {
-             Id = item.Id.ToString("N"),
-             Name = item.Name,
-             Type = item.GetBaseItemKind().ToString(),
-             Overview = item.Overview,
-             Genres = item.Genres ?? Array.Empty<string>(),
-             PrimaryImageAspectRatio = item.PrimaryImageAspectRatio
-         }).ToList();
+            {
+                Id = item.Id.ToString("N"),
+                Name = item.Name,
+                Type = item.GetBaseItemKind().ToString(),
+                Overview = item.Overview,
+                Genres = item.Genres ?? Array.Empty<string>(),
+                PrimaryImageAspectRatio = 0.6666667
+            }).ToList();
         }
 
         return Ok(new { rows = resultRows });
