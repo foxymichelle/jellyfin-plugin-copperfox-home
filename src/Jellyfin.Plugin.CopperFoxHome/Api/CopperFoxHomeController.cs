@@ -93,20 +93,17 @@ public class CopperFoxHomeController : ControllerBase
                 return new List<BaseItem>();
             }
 
-            var parent = _libraryManager.GetItemById(parentId);
-            if (parent == null)
+            if (_libraryManager.GetItemById(parentId) is not Folder folder)
             {
                 return new List<BaseItem>();
             }
 
-            var query = new InternalItemsQuery(user)
-            {
-                Parent = parent,
-                Limit = limit
-            };
-            var items = _libraryManager.GetItemList(query);
-            return ApplyScopeFilter(items, rowDef.Scope, discoverLibGuid).ToList();
+            var items = folder.GetChildren(user, true);
+            return ApplyScopeFilter(items, rowDef.Scope, discoverLibGuid)
+                .Take(limit)
+                .ToList();
         }
+
 
         if (string.Equals(rowDef.RowType, "TopGenre", StringComparison.OrdinalIgnoreCase))
         {
