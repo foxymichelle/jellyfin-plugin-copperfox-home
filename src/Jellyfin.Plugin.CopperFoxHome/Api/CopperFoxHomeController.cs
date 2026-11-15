@@ -70,16 +70,28 @@ public class CopperFoxHomeController : ControllerBase
                 continue;
             }
 
-            var dtos = items.Select(item => new
+            var dtos = items.Select(item =>
             {
-                Id = item.Id.ToString("N"),
-                Name = item.Name,
-                Type = item.GetBaseItemKind().ToString(),
-                Overview = item.Overview,
-                Genres = item.Genres ?? Array.Empty<string>(),
-                PrimaryImageAspectRatio = 0.6666667,
-                IsDiscover = string.Equals(rowDef.Scope, "DiscoverOnly", StringComparison.OrdinalIgnoreCase)
+                var kind = item.GetBaseItemKind().ToString();
+                int? childCount = item is Folder folder ? folder.GetChildren(user, false).Count : null;
+                int? episodeCount = item is MediaBrowser.Controller.Entities.TV.Series series
+                    ? series.GetEpisodes(user, new DtoOptions(false)).Count
+                    : null;
+
+                return new
+                {
+                    Id = item.Id.ToString("N"),
+                    Name = item.Name,
+                    Type = kind,
+                    Overview = item.Overview,
+                    Genres = item.Genres ?? Array.Empty<string>(),
+                    PrimaryImageAspectRatio = 0.6666667,
+                    IsDiscover = string.Equals(rowDef.Scope, "DiscoverOnly", StringComparison.OrdinalIgnoreCase),
+                    ChildCount = childCount,
+                    RecursiveItemCount = episodeCount
+                };
             }).ToList();
+
 
             resultRows.Add(new
             {
@@ -110,7 +122,7 @@ public class CopperFoxHomeController : ControllerBase
         out string dynamicTitle)
     {
         dynamicTitle = rowDef.Title;
-        var limit = rowDef.Limit > 0 ? rowDef.Limit : 25;
+        var limit = rowDef.Limit > 0 ? rowDef.Limit : 12;
 
         if (string.Equals(rowDef.RowType, "Collection", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(rowDef.RowType, "MyMedia", StringComparison.OrdinalIgnoreCase) ||

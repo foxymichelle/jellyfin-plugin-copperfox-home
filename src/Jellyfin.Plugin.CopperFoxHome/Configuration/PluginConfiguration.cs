@@ -34,6 +34,6 @@ public class CustomHomeRowDefinition
 
     public string SortOrder { get; set; } = "Ascending";
 
-    public int Limit { get; set; } = 25;
+    public int Limit { get; set; } = 12;
 }
 
