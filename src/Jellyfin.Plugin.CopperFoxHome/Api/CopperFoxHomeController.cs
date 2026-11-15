@@ -268,7 +268,11 @@ public class CopperFoxHomeController : ControllerBase
             var movieToBoxSet = new Dictionary<Guid, BaseItem>();
             foreach (var boxSet in boxSets)
             {
-                foreach (var child in boxSet.GetLinkedChildren())
+                var children = _libraryManager.GetItemList(new InternalItemsQuery(user)
+                {
+                    ParentId = boxSet.Id
+                });
+                foreach (var child in children)
                 {
                     if (!movieToBoxSet.ContainsKey(child.Id))
                     {
@@ -276,6 +280,7 @@ public class CopperFoxHomeController : ControllerBase
                     }
                 }
             }
+
             var seenIds = new HashSet<Guid>();
             var grouped = new List<BaseItem>();
             foreach (var item in list)
@@ -297,7 +302,7 @@ public class CopperFoxHomeController : ControllerBase
         return list.Take(limit).ToList();
     }
 
-        private IEnumerable<BaseItem> ApplyScopeFilter(IEnumerable<BaseItem> items, string scope, Guid discoverLibGuid)
+    private IEnumerable<BaseItem> ApplyScopeFilter(IEnumerable<BaseItem> items, string scope, Guid discoverLibGuid)
     {
         if (discoverLibGuid == Guid.Empty)
         {
@@ -318,19 +323,24 @@ public class CopperFoxHomeController : ControllerBase
 
         var folderPrefixes = (virtualFolder?.Locations ?? Array.Empty<string>())
             .Where(loc => !string.IsNullOrWhiteSpace(loc))
-            .Select(loc => loc.TrimEnd('/', '\\') + "/")
+            .Select(loc => loc.TrimEnd('/', '\\').Replace('\\', '/') + "/")
             .ToList();
 
         bool IsInDiscover(BaseItem item)
         {
-            if (folderPrefixes.Count == 0 || string.IsNullOrWhiteSpace(item.Path))
+            if (item.ParentId == discoverLibGuid || item.GetAncestorIds().Contains(discoverLibGuid))
             {
-                return false;
+                return true;
             }
 
-            var normalizedItemPath = item.Path.Replace('\\', '/');
-            return folderPrefixes.Any(prefix =>
-                normalizedItemPath.StartsWith(prefix.Replace('\\', '/'), StringComparison.OrdinalIgnoreCase));
+            if (folderPrefixes.Count > 0 && !string.IsNullOrWhiteSpace(item.Path))
+            {
+                var normalizedItemPath = item.Path.Replace('\\', '/');
+                return folderPrefixes.Any(prefix =>
+                    normalizedItemPath.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+            }
+
+            return false;
         }
 
         if (string.Equals(scope, "DiscoverOnly", StringComparison.OrdinalIgnoreCase))
