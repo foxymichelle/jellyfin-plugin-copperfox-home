@@ -36,7 +36,7 @@ public class CopperFoxHomeController : ControllerBase
 
     [HttpGet("Rows")]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public ActionResult<object> GetRows([FromQuery] Guid? userId)
+    public ActionResult<object> GetRows([FromQuery] Guid? userId, [FromQuery] int? rowIndex, [FromQuery] int skip = 0)
     {
         var config = Plugin.Instance?.Configuration ?? new PluginConfiguration();
         var resolvedUserId = userId ?? GetCurrentUserId();
@@ -58,19 +58,30 @@ public class CopperFoxHomeController : ControllerBase
         for (int i = 0; i < config.Rows.Count; i++)
         {
             var rowDef = config.Rows[i];
-            var items = ResolveRowItems(rowDef, user, discoverLibGuid, usedGenres, out var dynamicTitle);
+            if (rowIndex.HasValue && rowIndex.Value != i)
+            {
+                if (rowDef.RowType.StartsWith("TopGenre", StringComparison.OrdinalIgnoreCase))
+                {
+                    ResolveRowItems(rowDef, user, discoverLibGuid, usedGenres, 0, out _, out _);
+                }
+                continue;
+            }
+
+            var allItems = ResolveRowItems(rowDef, user, discoverLibGuid, usedGenres, skip, out var dynamicTitle, out var hasMore);
             var isClientFetched =
                 string.Equals(rowDef.RowType, "Collection", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(rowDef.RowType, "MyMedia", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(rowDef.RowType, "ContinueAndUpNext", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(rowDef.RowType, "LatestMovies", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(rowDef.RowType, "LatestShows", StringComparison.OrdinalIgnoreCase);
-            if (items.Count == 0 && !isClientFetched)
+                string.Equals(rowDef.RowType, "LatestShows", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(rowDef.RowType, "StreamingServices", StringComparison.OrdinalIgnoreCase);
+
+            if (allItems.Count == 0 && !isClientFetched && skip == 0)
             {
                 continue;
             }
 
-            var dtos = items.Select(item =>
+            var dtos = allItems.Select(item =>
             {
                 var kind = item.GetBaseItemKind().ToString();
                 int? childCount = item is Folder folder ? folder.GetChildren(user, false).Count : null;
@@ -92,15 +103,16 @@ public class CopperFoxHomeController : ControllerBase
                 };
             }).ToList();
 
-
             resultRows.Add(new
             {
+                rowIndex = i,
                 key = $"cfRow_{i}_{rowDef.RowType}",
                 title = string.IsNullOrWhiteSpace(dynamicTitle) ? rowDef.Title : dynamicTitle,
                 rowType = rowDef.RowType,
                 targetValue = rowDef.TargetValue,
                 scope = rowDef.Scope,
                 imageStyle = string.IsNullOrWhiteSpace(rowDef.ImageStyle) ? "Poster" : rowDef.ImageStyle,
+                hasMore = hasMore,
                 items = dtos
             });
         }
@@ -119,16 +131,20 @@ public class CopperFoxHomeController : ControllerBase
         Jellyfin.Database.Implementations.Entities.User user,
         Guid discoverLibGuid,
         HashSet<string> usedGenres,
-        out string dynamicTitle)
+        int skip,
+        out string dynamicTitle,
+        out bool hasMore)
     {
         dynamicTitle = rowDef.Title;
-        var limit = rowDef.Limit > 0 ? rowDef.Limit : 12;
+        hasMore = false;
+        const int pageSize = 12;
 
         if (string.Equals(rowDef.RowType, "Collection", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(rowDef.RowType, "MyMedia", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(rowDef.RowType, "ContinueAndUpNext", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(rowDef.RowType, "LatestMovies", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(rowDef.RowType, "LatestShows", StringComparison.OrdinalIgnoreCase))
+            string.Equals(rowDef.RowType, "LatestShows", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(rowDef.RowType, "StreamingServices", StringComparison.OrdinalIgnoreCase))
         {
             return new List<BaseItem>();
         }
@@ -146,7 +162,7 @@ public class CopperFoxHomeController : ControllerBase
                 Genres = new[] { genreName },
                 Limit = 250
             };
-            return ApplyPostFilters(_libraryManager.GetItemList(genreQuery), rowDef, user, discoverLibGuid, shuffle: true, limit);
+            return ApplyPostFilters(_libraryManager.GetItemList(genreQuery), rowDef, user, discoverLibGuid, shuffle: true, skip, pageSize, out hasMore);
         }
 
         if (rowDef.RowType.StartsWith("TopGenre", StringComparison.OrdinalIgnoreCase))
@@ -188,7 +204,7 @@ public class CopperFoxHomeController : ControllerBase
                 Genres = new[] { chosenGenre },
                 Limit = 250
             };
-            return ApplyPostFilters(_libraryManager.GetItemList(recQuery), rowDef, user, discoverLibGuid, shuffle: true, limit);
+            return ApplyPostFilters(_libraryManager.GetItemList(recQuery), rowDef, user, discoverLibGuid, shuffle: true, skip, pageSize, out hasMore);
         }
 
         if (string.Equals(rowDef.RowType, "BecauseYouWatched", StringComparison.OrdinalIgnoreCase))
@@ -255,7 +271,7 @@ public class CopperFoxHomeController : ControllerBase
                 .Select(x => x.Item)
                 .ToList();
 
-            return ApplyPostFilters(ranked, rowDef, user, discoverLibGuid, shuffle: false, limit);
+            return ApplyPostFilters(ranked, rowDef, user, discoverLibGuid, shuffle: false, skip, pageSize, out hasMore);
         }
 
         if ((string.Equals(rowDef.RowType, "Tag", StringComparison.OrdinalIgnoreCase) ||
@@ -277,7 +293,7 @@ public class CopperFoxHomeController : ControllerBase
                 Tags = tagList,
                 Limit = 250
             };
-            return ApplyPostFilters(_libraryManager.GetItemList(tagQuery), rowDef, user, discoverLibGuid, shuffle: true, limit);
+            return ApplyPostFilters(_libraryManager.GetItemList(tagQuery), rowDef, user, discoverLibGuid, shuffle: true, skip, pageSize, out hasMore);
         }
 
         return new List<BaseItem>();
@@ -289,7 +305,9 @@ public class CopperFoxHomeController : ControllerBase
         Jellyfin.Database.Implementations.Entities.User user,
         Guid discoverLibGuid,
         bool shuffle,
-        int limit)
+        int skip,
+        int pageSize,
+        out bool hasMore)
     {
         var filtered = ApplyScopeFilter(source, rowDef.Scope, discoverLibGuid);
 
@@ -345,11 +363,15 @@ public class CopperFoxHomeController : ControllerBase
 
         if (shuffle)
         {
-            list = list.OrderBy(_ => Random.Shared.Next()).ToList();
+            var seed = (rowDef.Title ?? string.Empty).GetHashCode() ^ DateTime.UtcNow.DayOfYear;
+            var rng = new Random(seed);
+            list = list.OrderBy(_ => rng.Next()).ToList();
         }
 
-        return list.Take(limit).ToList();
+        hasMore = list.Count > (skip + pageSize);
+        return list.Skip(skip).Take(pageSize).ToList();
     }
+
 
     private IEnumerable<BaseItem> ApplyScopeFilter(IEnumerable<BaseItem> items, string scope, Guid discoverLibGuid)
     {
