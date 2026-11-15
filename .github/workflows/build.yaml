@@ -19,9 +19,12 @@ jobs:
 
       - name: Build & Publish DLL
         run: |
+          VERSION="1.0.${{ github.run_number }}.0"
           dotnet publish src/Jellyfin.Plugin.CopperFoxHome/Jellyfin.Plugin.CopperFoxHome.csproj \
             -c Release \
+            -p:Version="${VERSION}" \
             -o publish
+
 
       - name: Package ZIP with meta.json & Generate manifest.json
         id: pkg
