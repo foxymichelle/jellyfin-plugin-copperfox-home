@@ -297,7 +297,7 @@ public class CopperFoxHomeController : ControllerBase
         return list.Take(limit).ToList();
     }
 
-    private IEnumerable<BaseItem> ApplyScopeFilter(IEnumerable<BaseItem> items, string scope, Guid discoverLibGuid)
+        private IEnumerable<BaseItem> ApplyScopeFilter(IEnumerable<BaseItem> items, string scope, Guid discoverLibGuid)
     {
         if (discoverLibGuid == Guid.Empty)
         {
@@ -307,41 +307,30 @@ public class CopperFoxHomeController : ControllerBase
         }
 
         var discoverItem = _libraryManager.GetItemById(discoverLibGuid);
-        var discoverPaths = new List<string>();
-        if (discoverItem != null)
-        {
-            if (!string.IsNullOrWhiteSpace(discoverItem.Path))
-            {
-                discoverPaths.Add(discoverItem.Path.TrimEnd('/', '\\') + "/");
-                discoverPaths.Add(discoverItem.Path.TrimEnd('/', '\\') + "\\");
-            }
+        var discoverName = discoverItem?.Name ?? string.Empty;
+        var discoverIdStr = discoverLibGuid.ToString("N");
 
-            if (discoverItem is Folder folder)
-            {
-                foreach (var loc in folder.PhysicalLocations ?? Array.Empty<string>())
-                {
-                    if (!string.IsNullOrWhiteSpace(loc))
-                    {
-                        discoverPaths.Add(loc.TrimEnd('/', '\\') + "/");
-                        discoverPaths.Add(loc.TrimEnd('/', '\\') + "\\");
-                    }
-                }
-            }
-        }
+        var virtualFolder = _libraryManager.GetVirtualFolders()
+            .FirstOrDefault(vf =>
+                string.Equals(vf.ItemId, discoverIdStr, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(vf.ItemId, discoverLibGuid.ToString(), StringComparison.OrdinalIgnoreCase) ||
+                (!string.IsNullOrEmpty(discoverName) && string.Equals(vf.Name, discoverName, StringComparison.OrdinalIgnoreCase)));
+
+        var folderPrefixes = (virtualFolder?.Locations ?? Array.Empty<string>())
+            .Where(loc => !string.IsNullOrWhiteSpace(loc))
+            .Select(loc => loc.TrimEnd('/', '\\') + "/")
+            .ToList();
 
         bool IsInDiscover(BaseItem item)
         {
-            if (item.GetAncestorIds().Contains(discoverLibGuid))
+            if (folderPrefixes.Count == 0 || string.IsNullOrWhiteSpace(item.Path))
             {
-                return true;
+                return false;
             }
 
-            if (discoverPaths.Count > 0 && !string.IsNullOrWhiteSpace(item.Path))
-            {
-                return discoverPaths.Any(p => item.Path.StartsWith(p, StringComparison.OrdinalIgnoreCase));
-            }
-
-            return false;
+            var normalizedItemPath = item.Path.Replace('\\', '/');
+            return folderPrefixes.Any(prefix =>
+                normalizedItemPath.StartsWith(prefix.Replace('\\', '/'), StringComparison.OrdinalIgnoreCase));
         }
 
         if (string.Equals(scope, "DiscoverOnly", StringComparison.OrdinalIgnoreCase))
@@ -351,6 +340,7 @@ public class CopperFoxHomeController : ControllerBase
 
         return items.Where(i => !IsInDiscover(i));
     }
+
 
     private Guid GetCurrentUserId()
     {
