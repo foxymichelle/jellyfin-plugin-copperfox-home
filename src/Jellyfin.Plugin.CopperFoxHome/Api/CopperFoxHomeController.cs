@@ -286,7 +286,10 @@ public class CopperFoxHomeController : ControllerBase
 
             foreach (var boxSet in boxSets)
             {
-                var children = boxSet.GetChildren(user, true, null);
+                var children = _libraryManager.GetItemList(new InternalItemsQuery(user)
+                {
+                    Parent = boxSet
+                });
                 foreach (var child in children)
                 {
                     if (!movieIdToBoxSet.ContainsKey(child.Id))
