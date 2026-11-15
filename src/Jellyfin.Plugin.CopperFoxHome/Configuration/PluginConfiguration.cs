@@ -24,7 +24,6 @@ public class CustomHomeRowDefinition
     public int Limit { get; set; } = 25;
 }
 
-
 public class PluginConfiguration : BasePluginConfiguration
 {
     public string DiscoverLibraryId { get; set; } = string.Empty;

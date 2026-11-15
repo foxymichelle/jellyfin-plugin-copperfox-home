@@ -49,7 +49,6 @@ public class CopperFoxHomeController : ControllerBase
         Guid.TryParse(config.DiscoverLibraryId, out var discoverLibGuid);
         var resultRows = new List<object>();
 
-        // Pre-populate any explicitly assigned Genre rows so TopGenre1/2/3 never duplicate them
         var usedGenres = new HashSet<string>(
             config.Rows
                 .Where(r => string.Equals(r.RowType, "Genre", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(r.TargetValue))
@@ -115,12 +114,9 @@ public class CopperFoxHomeController : ControllerBase
                 Recursive = true,
                 IncludeItemTypes = new[] { BaseItemKind.Movie, BaseItemKind.Series },
                 Genres = new[] { genreName },
-                OrderBy = new[] { (ItemSortBy.Random, SortOrder.Ascending) },
-                Limit = limit * 2
+                Limit = 250
             };
-            return ApplyScopeFilter(_libraryManager.GetItemList(genreQuery), rowDef.Scope, discoverLibGuid)
-                .Take(limit)
-                .ToList();
+            return ApplyPostFilters(_libraryManager.GetItemList(genreQuery), rowDef, user, discoverLibGuid, shuffle: true, limit);
         }
 
         if (rowDef.RowType.StartsWith("TopGenre", StringComparison.OrdinalIgnoreCase))
@@ -159,12 +155,9 @@ public class CopperFoxHomeController : ControllerBase
                 IsPlayed = false,
                 IncludeItemTypes = new[] { BaseItemKind.Movie, BaseItemKind.Series },
                 Genres = new[] { chosenGenre },
-                OrderBy = new[] { (ItemSortBy.Random, SortOrder.Ascending) },
-                Limit = limit * 2
+                Limit = 250
             };
-            return ApplyScopeFilter(_libraryManager.GetItemList(recQuery), rowDef.Scope, discoverLibGuid)
-                .Take(limit)
-                .ToList();
+            return ApplyPostFilters(_libraryManager.GetItemList(recQuery), rowDef, user, discoverLibGuid, shuffle: true, limit);
         }
 
         if (string.Equals(rowDef.RowType, "BecauseYouWatched", StringComparison.OrdinalIgnoreCase))
@@ -194,10 +187,10 @@ public class CopperFoxHomeController : ControllerBase
                 IsPlayed = false,
                 IncludeItemTypes = new[] { seed.GetBaseItemKind() },
                 Genres = seed.Genres,
-                Limit = 150
+                Limit = 250
             };
 
-            return ApplyScopeFilter(_libraryManager.GetItemList(poolQuery), rowDef.Scope, discoverLibGuid)
+            var ranked = ApplyScopeFilter(_libraryManager.GetItemList(poolQuery), rowDef.Scope, discoverLibGuid)
                 .Where(x => x.Id != seed.Id)
                 .Select(x =>
                 {
@@ -209,8 +202,9 @@ public class CopperFoxHomeController : ControllerBase
                 .OrderByDescending(x => x.Score)
                 .ThenBy(_ => Random.Shared.Next())
                 .Select(x => x.Item)
-                .Take(limit)
                 .ToList();
+
+            return ApplyPostFilters(ranked, rowDef, user, discoverLibGuid, shuffle: false, limit);
         }
 
         if ((string.Equals(rowDef.RowType, "Tag", StringComparison.OrdinalIgnoreCase) ||
@@ -230,15 +224,77 @@ public class CopperFoxHomeController : ControllerBase
                 Recursive = true,
                 IncludeItemTypes = new[] { BaseItemKind.Movie, BaseItemKind.Series },
                 Tags = tagList,
-                OrderBy = new[] { (ItemSortBy.Random, SortOrder.Ascending) },
-                Limit = limit * 2
+                Limit = 250
             };
-            return ApplyScopeFilter(_libraryManager.GetItemList(tagQuery), rowDef.Scope, discoverLibGuid)
-                .Take(limit)
-                .ToList();
+            return ApplyPostFilters(_libraryManager.GetItemList(tagQuery), rowDef, user, discoverLibGuid, shuffle: true, limit);
         }
 
         return new List<BaseItem>();
+    }
+
+    private List<BaseItem> ApplyPostFilters(
+        IEnumerable<BaseItem> source,
+        CustomHomeRowDefinition rowDef,
+        Jellyfin.Database.Implementations.Entities.User user,
+        Guid discoverLibGuid,
+        bool shuffle,
+        int limit)
+    {
+        var filtered = ApplyScopeFilter(source, rowDef.Scope, discoverLibGuid);
+
+        if (!string.IsNullOrWhiteSpace(rowDef.ExcludeTags))
+        {
+            var excluded = new HashSet<string>(
+                rowDef.ExcludeTags.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
+                StringComparer.OrdinalIgnoreCase);
+
+            if (excluded.Count > 0)
+            {
+                filtered = filtered.Where(item =>
+                    item.Tags == null || !item.Tags.Any(t => excluded.Contains(t)));
+            }
+        }
+
+        var list = filtered.ToList();
+
+        if (rowDef.GroupIntoCollections)
+        {
+            var boxSets = _libraryManager.GetItemList(new InternalItemsQuery(user)
+            {
+                Recursive = true,
+                IncludeItemTypes = new[] { BaseItemKind.BoxSet }
+            }).OfType<MediaBrowser.Controller.Entities.Movies.BoxSet>().ToList();
+
+            var movieToBoxSet = new Dictionary<Guid, BaseItem>();
+            foreach (var boxSet in boxSets)
+            {
+                foreach (var child in boxSet.GetLinkedChildren())
+                {
+                    if (!movieToBoxSet.ContainsKey(child.Id))
+                    {
+                        movieToBoxSet[child.Id] = boxSet;
+                    }
+                }
+            }
+            var seenIds = new HashSet<Guid>();
+            var grouped = new List<BaseItem>();
+            foreach (var item in list)
+            {
+                var displayItem = movieToBoxSet.TryGetValue(item.Id, out var parentBoxSet) ? parentBoxSet : item;
+                if (seenIds.Add(displayItem.Id))
+                {
+                    grouped.Add(displayItem);
+                }
+            }
+            list = grouped;
+        }
+
+        if (shuffle)
+        {
+            list = list.OrderBy(_ => Random.Shared.Next()).ToList();
+        }
+
+        return list.Take(limit).ToList();
     }
 
     private static IEnumerable<BaseItem> ApplyScopeFilter(IEnumerable<BaseItem> items, string scope, Guid discoverLibGuid)
