@@ -7,21 +7,72 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Setup .NET
+      - name: Setup .NET 9
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '9.0.x'
 
-      - name: Build & Publish Plugin
-        uses: jinya-io/jellyfin-plugin-builder@v2
+      - name: Build & Publish DLL
+        run: |
+          dotnet publish src/Jellyfin.Plugin.CopperFoxHome/Jellyfin.Plugin.CopperFoxHome.csproj \
+            -c Release \
+            -o publish
+
+      - name: Package ZIP & Generate manifest.json
+        id: pkg
+        run: |
+          VERSION="1.0.${{ github.run_number }}.0"
+          ZIP_NAME="copperfox-home_${VERSION}.zip"
+          mkdir -p release_assets
+          cd publish
+          zip -r "../release_assets/${ZIP_NAME}" Jellyfin.Plugin.CopperFoxHome.dll
+          cd ..
+          CHECKSUM=$(md5sum "release_assets/${ZIP_NAME}" | awk '{print $1}')
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          DOWNLOAD_URL="https://github.com{{ github.repository }}/releases/download/v${VERSION}/${ZIP_NAME}"
+
+          cat << EOF > manifest.json
+          [
+            {
+              "guid": "c099e7f0-4a1b-4c8d-9e2a-7f1b3c5d8e9a",
+              "name": "CopperFox Home",
+              "description": "Curated and personalized home screen rows for Desktop and Starfin on Roku.",
+              "overview": "Curated and personalized home screen rows for Desktop and Starfin on Roku.",
+              "owner": "foxymichelle",
+              "category": "General",
+              "versions": [
+                {
+                  "version": "${VERSION}",
+                  "changelog": "Automated release v${VERSION}",
+                  "targetAbi": "10.11.0.0",
+                  "sourceUrl": "${DOWNLOAD_URL}",
+                  "checksum": "${CHECKSUM}",
+                  "timestamp": "${TIMESTAMP}"
+                }
+              ]
+            }
+          ]
+          EOF
+
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "zip_path=release_assets/${ZIP_NAME}" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          solution-file: src/Jellyfin.Plugin.CopperFoxHome.sln
-          release-version: 1.0.${{ github.run_number }}.0
-          target-abi: 10.11.0.0
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          tag_name: v${{ steps.pkg.outputs.version }}
+          name: CopperFox Home v${{ steps.pkg.outputs.version }}
+          files: ${{ steps.pkg.outputs.zip_path }}
+
+      - name: Commit updated manifest.json
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add manifest.json
+          git diff --staged --quiet || git commit -m "Update manifest.json for v${{ steps.pkg.outputs.version }} [skip ci]"
+          git push
