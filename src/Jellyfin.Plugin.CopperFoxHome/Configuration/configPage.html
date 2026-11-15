@@ -58,26 +58,37 @@
 
                     var targetPlaceholder = row.RowType === "Genre" ? "Genre (e.g. Horror, Comedy)" : "Include tags (comma-separated)";
                     var targetHtml = isCollection
-                        ? '<select class="row-target" style="width:100%;box-sizing:border-box;padding:9px;background:#181818;color:#fff;border:1px solid #444;border-radius:4px;">' + optionsHtml + '</select>'
-                        : '<input type="text" class="row-target" value="' + (row.TargetValue || "") + '" placeholder="' + targetPlaceholder + '" style="width:100%;box-sizing:border-box;padding:9px;background:#181818;color:#fff;border:1px solid #444;border-radius:4px;" />';
+                        ? '<select class="row-target" style="width:100%;box-sizing:border-box;padding:9px;font-size:14px;background:#181818;color:#fff;border:1px solid #444;border-radius:4px;">' + optionsHtml + '</select>'
+                        : '<input type="text" class="row-target" value="' + (row.TargetValue || "") + '" placeholder="' + targetPlaceholder + '" style="width:100%;box-sizing:border-box;padding:9px;font-size:14px;background:#181818;color:#fff;border:1px solid #444;border-radius:4px;" />';
+
+                    var delBtnHtml = '<button type="button" class="btn-del" title="Remove row" style="color:#000;background:#888;border:none;border-radius:4px;font-weight:bold;padding:6px 10px;cursor:pointer;margin-left:auto;">X</button>';
+                    var titlePlaceholder = isAuto ? "Row Title (auto-generated)" : "Row Title";
 
                     var secondRowHtml = '';
                     if (!isCollection && !isAuto) {
                         secondRowHtml =
                             '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:12px;">' +
                                 '<div>' + targetHtml + '</div>' +
-                                '<div><input type="text" class="row-exclude" value="' + (row.ExcludeTags || "") + '" placeholder="Exclude tags (comma-separated)" style="width:100%;box-sizing:border-box;padding:9px;background:#181818;color:#fff;border:1px solid #444;border-radius:4px;" /></div>' +
-                                '<div style="display:flex;align-items:center;"><label style="cursor:pointer;margin:0;"><input type="checkbox" class="row-group" ' + (row.GroupIntoCollections ? 'checked' : '') + ' style="margin-right:8px;" />Group Movies Into Collections</label></div>' +
+                                '<div><input type="text" class="row-exclude" value="' + (row.ExcludeTags || "") + '" placeholder="Exclude tags (comma-separated)" style="width:100%;box-sizing:border-box;padding:9px;font-size:14px;background:#181818;color:#fff;border:1px solid #444;border-radius:4px;" /></div>' +
+                                '<div style="display:flex;align-items:center;">' +
+                                    '<label style="cursor:pointer;margin:0;font-size:14px;display:flex;align-items:center;"><input type="checkbox" class="row-group" ' + (row.GroupIntoCollections ? 'checked' : '') + ' style="margin-right:8px;" />Group Collections</label>' +
+                                    delBtnHtml +
+                                '</div>' +
                             '</div>';
                     } else if (isCollection) {
                         secondRowHtml =
-                            '<div style="display:grid;grid-template-columns:1fr;gap:14px;margin-top:12px;">' +
-                                '<div>' + targetHtml + '</div>' +
+                            '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:12px;">' +
+                                '<div style="grid-column:span 2;">' + targetHtml + '</div>' +
+                                '<div style="display:flex;align-items:center;">' + delBtnHtml + '</div>' +
                             '</div>';
                     } else if (isAuto) {
                         secondRowHtml =
-                            '<div style="display:grid;grid-template-columns:1fr;gap:14px;margin-top:12px;">' +
-                                '<div style="display:flex;align-items:center;"><label style="cursor:pointer;margin:0;"><input type="checkbox" class="row-group" ' + (row.GroupIntoCollections ? 'checked' : '') + ' style="margin-right:8px;" />Group Movies Into Collections</label></div>' +
+                            '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:12px;">' +
+                                '<div style="grid-column:span 2;"></div>' +
+                                '<div style="display:flex;align-items:center;">' +
+                                    '<label style="cursor:pointer;margin:0;font-size:14px;display:flex;align-items:center;"><input type="checkbox" class="row-group" ' + (row.GroupIntoCollections ? 'checked' : '') + ' style="margin-right:8px;" />Group Collections</label>' +
+                                    delBtnHtml +
+                                '</div>' +
                             '</div>';
                     }
 
@@ -89,7 +100,7 @@
                         '</div>' +
                         '<div style="flex:1;min-width:0;">' +
                             '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;">' +
-                                '<div><select class="row-type" style="width:100%;box-sizing:border-box;padding:9px;background:#181818;color:#fff;border:1px solid #444;border-radius:4px;">' +
+                                '<div><select class="row-type" style="width:100%;box-sizing:border-box;padding:9px;font-size:14px;background:#181818;color:#fff;border:3px solid #666;border-radius:4px;">' +
                                     '<option value="Collection"' + (row.RowType === "Collection" ? " selected" : "") + '>Collection / Playlist</option>' +
                                     '<option value="Tag"' + (row.RowType === "Tag" || row.RowType === "Keyword" ? " selected" : "") + '>Tag Match</option>' +
                                     '<option value="Genre"' + (row.RowType === "Genre" ? " selected" : "") + '>Specific Genre</option>' +
@@ -98,16 +109,13 @@
                                     '<option value="TopGenre3"' + (row.RowType === "TopGenre3" ? " selected" : "") + '>User Top Genre #3</option>' +
                                     '<option value="BecauseYouWatched"' + (row.RowType === "BecauseYouWatched" ? " selected" : "") + '>Because You Watched</option>' +
                                 '</select></div>' +
-                                '<div><input type="text" class="row-title" value="' + (row.Title || "") + '" placeholder="Row Title" style="width:100%;box-sizing:border-box;padding:9px;background:#181818;color:#fff;border:1px solid #444;border-radius:4px;" /></div>' +
-                                '<div><select class="row-scope" style="width:100%;box-sizing:border-box;padding:9px;background:#181818;color:#fff;border:1px solid #444;border-radius:4px;">' +
+                                '<div><input type="text" class="row-title" value="' + (row.Title || "") + '" placeholder="' + titlePlaceholder + '" style="width:100%;box-sizing:border-box;padding:9px;font-size:14px;background:#181818;color:#fff;border:1px solid #444;border-radius:4px;" /></div>' +
+                                '<div><select class="row-scope" style="width:100%;box-sizing:border-box;padding:9px;font-size:14px;background:#181818;color:#fff;border:1px solid #444;border-radius:4px;">' +
                                     '<option value="OwnedOnly"' + (row.Scope === "OwnedOnly" ? " selected" : "") + '>Owned Libraries Only</option>' +
                                     '<option value="DiscoverOnly"' + (row.Scope === "DiscoverOnly" ? " selected" : "") + '>Discover Folder Only</option>' +
                                 '</select></div>' +
                             '</div>' +
                             secondRowHtml +
-                        '</div>' +
-                        '<div style="display:flex;align-items:center;">' +
-                            '<button type="button" class="btn-del" style="color:#ff6b6b;padding:6px 10px;cursor:pointer;">Remove</button>' +
                         '</div>';
 
                     card.querySelector(".row-title").oninput = function (e) { currentRows[idx].Title = e.target.value; };
