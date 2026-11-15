@@ -75,9 +75,9 @@ public class CopperFoxHomeController : ControllerBase
                 var kind = item.GetBaseItemKind().ToString();
                 int? childCount = item is Folder folder ? folder.GetChildren(user, false).Count : null;
                 int? episodeCount = item is MediaBrowser.Controller.Entities.TV.Series series
-                    ? series.GetEpisodes(user, new DtoOptions(false)).Count
+                int? episodeCount = item is MediaBrowser.Controller.Entities.TV.Series series
+                    ? series.GetEpisodes(user, new DtoOptions(false), false).Count
                     : null;
-
                 return new
                 {
                     Id = item.Id.ToString("N"),
