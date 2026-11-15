@@ -22,22 +22,17 @@ namespace Jellyfin.Plugin.CopperFoxHome.Api;
 [Produces(MediaTypeNames.Application.Json)]
 public class CopperFoxHomeController : ControllerBase
 {
-    private readonly ILibraryManager _libraryManager;
+        private readonly ILibraryManager _libraryManager;
     private readonly IUserManager _userManager;
-    private readonly IUserDataManager _userDataManager;
-    private readonly IDtoService _dtoService;
 
     public CopperFoxHomeController(
         ILibraryManager libraryManager,
-        IUserManager userManager,
-        IUserDataManager userDataManager,
-        IDtoService dtoService)
+        IUserManager userManager)
     {
         _libraryManager = libraryManager;
         _userManager = userManager;
-        _userDataManager = userDataManager;
-        _dtoService = dtoService;
     }
+
 
     [HttpGet("Rows")]
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -67,15 +62,16 @@ public class CopperFoxHomeController : ControllerBase
             {
                 Fields = new[] { ItemFields.PrimaryImageAspectRatio, ItemFields.Overview, ItemFields.Genres }
             };
-            var dtos = _dtoService.GetBaseItemDtos(items, dtoOptions, user);
 
-            resultRows.Add(new
-            {
-                key = $"cfRow_{i}_{rowDef.RowType}",
-                title = string.IsNullOrWhiteSpace(dynamicTitle) ? rowDef.Title : dynamicTitle,
-                scope = rowDef.Scope,
-                items = dtos
-            });
+            var dtos = items.Select(item => new
+         {
+             Id = item.Id.ToString("N"),
+             Name = item.Name,
+             Type = item.GetBaseItemKind().ToString(),
+             Overview = item.Overview,
+             Genres = item.Genres ?? Array.Empty<string>(),
+             PrimaryImageAspectRatio = item.PrimaryImageAspectRatio
+         }).ToList();
         }
 
         return Ok(new { rows = resultRows });
