@@ -1,0 +1,16 @@
+---
+name: "CopperFox Home"
+guid: "c099e7f0-4a1b-4c8d-9e2a-7f1b3c5d8e9a"
+version: "1.0.0.0"
+targetAbi: "10.12.0.0"
+framework: "net9.0"
+overview: "Curated and personalized home screen rows for Desktop and Starfin on Roku."
+description: >
+  Serves personalized Top Genre, Because You Watched, and curated Collection/Keyword rows
+  with Owned vs. Discover library isolation for both Jellyfin Web and Starfin on Roku.
+category: "General"
+owner: "foxymichelle"
+artifacts:
+- "Jellyfin.Plugin.CopperFoxHome.dll"
+changelog: >
+  Initial release of CopperFox Home.
