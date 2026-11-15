@@ -35,11 +35,15 @@
         </div>
     </div>
 
-    <script type="text/javascript">
+    <    <script type="text/javascript">
         (function () {
             const pluginId = "c099e7f0-4a1b-4c8d-9e2a-7f1b3c5d8e9a";
             let collectionsList = [];
             let currentRows = [];
+
+            function getPage() {
+                return document.querySelector("#CopperFoxHomeConfigPage");
+            }
 
             async function loadCollectionsAndLibraries(page) {
                 try {
@@ -48,13 +52,15 @@
 
                     const views = await ApiClient.getUserViews(userId);
                     const libSelect = page.querySelector("#selectDiscoverLibrary");
-                    libSelect.innerHTML = '<option value="">None (No Discover Folder)</option>';
-                    (views.Items || []).forEach(v => {
-                        const opt = document.createElement("option");
-                        opt.value = v.Id;
-                        opt.textContent = v.Name;
-                        libSelect.appendChild(opt);
-                    });
+                    if (libSelect) {
+                        libSelect.innerHTML = '<option value="">None (No Discover Folder)</option>';
+                        (views.Items || []).forEach(v => {
+                            const opt = document.createElement("option");
+                            opt.value = v.Id;
+                            opt.textContent = v.Name;
+                            libSelect.appendChild(opt);
+                        });
+                    }
 
                     const boxSets = await ApiClient.getItems(userId, {
                         IncludeItemTypes: "BoxSet,Playlist",
@@ -68,6 +74,7 @@
             }
 
             function renderRows(page) {
+                if (!page) return;
                 const container = page.querySelector("#rowsContainer");
                 if (!container) return;
                 container.innerHTML = "";
@@ -91,9 +98,9 @@
                         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
                             <strong>Row #${idx + 1}</strong>
                             <div>
-                                <button type="button" class="btn-up" style="margin-right:6px;padding:4px 10px;">↑</button>
-                                <button type="button" class="btn-down" style="margin-right:6px;padding:4px 10px;">↓</button>
-                                <button type="button" class="btn-del" style="color:#ff6b6b;padding:4px 10px;">Remove</button>
+                                <button type="button" class="btn-up" style="margin-right:6px;padding:4px 10px;cursor:pointer;">↑</button>
+                                <button type="button" class="btn-down" style="margin-right:6px;padding:4px 10px;cursor:pointer;">↓</button>
+                                <button type="button" class="btn-del" style="color:#ff6b6b;padding:4px 10px;cursor:pointer;">Remove</button>
                             </div>
                         </div>
                         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
@@ -161,13 +168,14 @@
             }
 
             async function initPage() {
-                const page = document.querySelector("#CopperFoxHomeConfigPage");
+                const page = getPage();
                 if (!page) return;
                 Dashboard.showLoadingMsg();
                 try {
                     await loadCollectionsAndLibraries(page);
                     const config = await ApiClient.getPluginConfiguration(pluginId);
-                    page.querySelector("#selectDiscoverLibrary").value = config.DiscoverLibraryId || "";
+                    const libSelect = page.querySelector("#selectDiscoverLibrary");
+                    if (libSelect) libSelect.value = config.DiscoverLibraryId || "";
                     currentRows = Array.isArray(config.Rows) ? config.Rows : [];
                     renderRows(page);
                 } catch (err) {
@@ -177,40 +185,49 @@
                 }
             }
 
-            const pageEl = document.querySelector("#CopperFoxHomeConfigPage");
-            if (pageEl) {
-                pageEl.addEventListener("pageshow", initPage);
-                pageEl.addEventListener("viewshow", initPage);
-            }
+            if (!window._copperFoxHomeBound) {
+                window._copperFoxHomeBound = true;
 
-            document.querySelector("#btnAddRow").addEventListener("click", function () {
-                currentRows.push({
-                    Title: "",
-                    RowType: "Collection",
-                    TargetValue: "",
-                    Scope: "OwnedOnly",
-                    SortBy: "SortName",
-                    SortOrder: "Ascending",
-                    Limit: 25
+                document.addEventListener("click", function (e) {
+                    if (e.target.closest("#btnAddRow")) {
+                        e.preventDefault();
+                        currentRows.push({
+                            Title: "",
+                            RowType: "Collection",
+                            TargetValue: "",
+                            Scope: "OwnedOnly",
+                            SortBy: "SortName",
+                            SortOrder: "Ascending",
+                            Limit: 25
+                        });
+                        renderRows(getPage());
+                    }
                 });
-                renderRows(document.querySelector("#CopperFoxHomeConfigPage"));
-            });
+                document.addEventListener("submit", async function (e) {
+                    if (e.target && e.target.id === "CopperFoxHomeConfigForm") {
+                        e.preventDefault();
+                        const page = getPage();
+                        Dashboard.showLoadingMsg();
+                        try {
+                            const config = await ApiClient.getPluginConfiguration(pluginId);
+                            config.DiscoverLibraryId = page.querySelector("#selectDiscoverLibrary").value;
+                            config.Rows = currentRows;
+                            await ApiClient.updatePluginConfiguration(pluginId, config);
+                            Dashboard.processPluginConfigurationUpdateResult();
+                        } catch (err) {
+                            Dashboard.hideLoadingMsg();
+                            console.error("CopperFox Home: failed saving configuration", err);
+                        }
+                    }
+                });
 
-            document.querySelector("#CopperFoxHomeConfigForm").addEventListener("submit", async function (e) {
-                e.preventDefault();
-                const page = document.querySelector("#CopperFoxHomeConfigPage");
-                Dashboard.showLoadingMsg();
-                try {
-                    const config = await ApiClient.getPluginConfiguration(pluginId);
-                    config.DiscoverLibraryId = page.querySelector("#selectDiscoverLibrary").value;
-                    config.Rows = currentRows;
-                    await ApiClient.updatePluginConfiguration(pluginId, config);
-                    Dashboard.processPluginConfigurationUpdateResult();
-                } catch (err) {
-                    Dashboard.hideLoadingMsg();
-                    console.error("CopperFox Home: failed saving configuration", err);
-                }
-            });
+                document.addEventListener("pageshow", function (e) {
+                    if (e.target && e.target.id === "CopperFoxHomeConfigPage") initPage();
+                });
+                document.addEventListener("viewshow", function (e) {
+                    if (e.target && e.target.id === "CopperFoxHomeConfigPage") initPage();
+                });
+            }
 
             initPage();
         })();
