@@ -124,7 +124,10 @@ public class CopperFoxHomeController : ControllerBase
         {
             var genreName = rowDef.TargetValue.Trim();
             usedGenres.Add(genreName);
-            dynamicTitle = string.IsNullOrWhiteSpace(rowDef.Title) ? genreName : rowDef.Title;
+            var isDiscover = string.Equals(rowDef.Scope, "DiscoverOnly", StringComparison.OrdinalIgnoreCase);
+            dynamicTitle = string.IsNullOrWhiteSpace(rowDef.Title)
+                ? (isDiscover ? $"DISCOVER More of {chosenGenre}" : $"More of {chosenGenre}")
+                : rowDef.Title.Replace("{Genre}", chosenGenre);
 
             var genreQuery = new InternalItemsQuery(user)
             {
@@ -212,7 +215,10 @@ public class CopperFoxHomeController : ControllerBase
                 return new List<BaseItem>();
             }
 
-            dynamicTitle = $"Because You Watched {recent.Name}";
+            var isDiscoverByw = string.Equals(rowDef.Scope, "DiscoverOnly", StringComparison.OrdinalIgnoreCase);
+            dynamicTitle = string.IsNullOrWhiteSpace(rowDef.Title)
+                ? (isDiscoverByw ? $"DISCOVER More Like {recent.Name}" : $"Because You Watched {recent.Name}")
+                : rowDef.Title;
             var seedGenres = new HashSet<string>(recent.Genres, StringComparer.OrdinalIgnoreCase);
             var seedTags = new HashSet<string>(recent.Tags ?? Array.Empty<string>(), StringComparer.OrdinalIgnoreCase);
 
