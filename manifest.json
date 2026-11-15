@@ -1,0 +1,20 @@
+[
+  {
+    "guid": "c099e7f0-4a1b-4c8d-9e2a-7f1b3c5d8e9a",
+    "name": "CopperFox Home",
+    "description": "Curated and personalized home screen rows for Desktop and Starfin on Roku.",
+    "overview": "Curated and personalized home screen rows for Desktop and Starfin on Roku.",
+    "owner": "foxymichelle",
+    "category": "General",
+    "versions": [
+      {
+        "version": "1.0.4.0",
+        "changelog": "Automated release v1.0.4.0",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://github.com{{ github.repository }}/releases/download/v1.0.4.0/copperfox-home_1.0.4.0.zip",
+        "checksum": "3890b80327b7a566a5837615cd979921",
+        "timestamp": "2026-11-15T00:32:25Z"
+      }
+    ]
+  }
+]
