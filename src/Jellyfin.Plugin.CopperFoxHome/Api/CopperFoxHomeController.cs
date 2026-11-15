@@ -53,15 +53,10 @@ public class CopperFoxHomeController : ControllerBase
         {
             var rowDef = config.Rows[i];
             var items = ResolveRowItems(rowDef, user, discoverLibGuid, out var dynamicTitle);
-            if (items.Count == 0)
+            if (items.Count == 0 && !string.Equals(rowDef.RowType, "Collection", StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
-
-            var dtoOptions = new DtoOptions
-            {
-                Fields = new[] { ItemFields.PrimaryImageAspectRatio, ItemFields.Overview, ItemFields.Genres }
-            };
 
             var dtos = items.Select(item => new
             {
@@ -72,6 +67,16 @@ public class CopperFoxHomeController : ControllerBase
                 Genres = item.Genres ?? Array.Empty<string>(),
                 PrimaryImageAspectRatio = 0.6666667
             }).ToList();
+
+            resultRows.Add(new
+            {
+                key = $"cfRow_{i}_{rowDef.RowType}",
+                title = string.IsNullOrWhiteSpace(dynamicTitle) ? rowDef.Title : dynamicTitle,
+                rowType = rowDef.RowType,
+                targetValue = rowDef.TargetValue,
+                scope = rowDef.Scope,
+                items = dtos
+            });
         }
 
         return Ok(new { rows = resultRows });
