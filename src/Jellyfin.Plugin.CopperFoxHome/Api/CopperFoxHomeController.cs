@@ -288,10 +288,9 @@ public class CopperFoxHomeController : ControllerBase
             {
                 foreach (var child in boxSet.GetLinkedChildren())
                 {
-                    var resolvedId = child.ItemId ?? Guid.Empty;
-                    if (resolvedId != Guid.Empty && !movieIdToBoxSet.ContainsKey(resolvedId))
+                    if (child.Id != Guid.Empty && !movieIdToBoxSet.ContainsKey(child.Id))
                     {
-                        movieIdToBoxSet[resolvedId] = boxSet;
+                        movieIdToBoxSet[child.Id] = boxSet;
                     }
                 }
             }
