@@ -84,11 +84,14 @@ public class CopperFoxHomeController : ControllerBase
             var dtos = allItems.Select(item =>
             {
                 var kind = item.GetBaseItemKind().ToString();
-                int? childCount = item is Folder folder ? folder.GetChildren(user, false).Count : null;
+                int? childCount = item is MediaBrowser.Controller.Entities.Movies.BoxSet boxSet
+                    ? boxSet.GetLinkedChildren().Count
+                    : (item is Folder folder ? folder.GetChildren(user, false).Count : null);
                 int? episodeCount = item is MediaBrowser.Controller.Entities.TV.Series series
                     ? series.GetEpisodes(user, new DtoOptions(false), false).Count()
                     : null;
                 var backdropCount = item.GetImages(MediaBrowser.Model.Entities.ImageType.Backdrop).Count();
+                var hasThumb = item.HasImage(MediaBrowser.Model.Entities.ImageType.Thumb);
 
                 return new
                 {
@@ -99,6 +102,7 @@ public class CopperFoxHomeController : ControllerBase
                     Genres = item.Genres ?? Array.Empty<string>(),
                     PrimaryImageAspectRatio = 0.6666667,
                     RunTimeTicks = item.RunTimeTicks,
+                    ImageTags = hasThumb ? new { Thumb = "1" } : null,
                     BackdropImageTags = Enumerable.Range(0, backdropCount).Select(idx => idx.ToString()).ToArray(),
                     UserData = new
                     {
@@ -146,8 +150,8 @@ public class CopperFoxHomeController : ControllerBase
     {
         dynamicTitle = rowDef.Title;
         hasMore = false;
-        const int pageSize = 12;
-
+        int pageSize = string.Equals(rowDef.ImageStyle, "Thumb", StringComparison.OrdinalIgnoreCase) ? 14 : 20;
+        
         if (string.Equals(rowDef.RowType, "Collection", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(rowDef.RowType, "MyMedia", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(rowDef.RowType, "ContinueAndUpNext", StringComparison.OrdinalIgnoreCase) ||
