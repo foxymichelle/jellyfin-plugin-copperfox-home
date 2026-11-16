@@ -139,9 +139,9 @@ public class CopperFoxHomeController : ControllerBase
                     BackdropImageTags = Enumerable.Range(0, backdropCount).Select(idx => idx.ToString()).ToArray(),
                     UserData = new
                     {
-                        Played = userData.Played,
-                        IsFavorite = userData.IsFavorite,
-                        PlaybackPositionTicks = userData.PlaybackPositionTicks
+                        Played = userData?.Played ?? false,
+                        IsFavorite = userData?.IsFavorite ?? false,
+                        PlaybackPositionTicks = userData?.PlaybackPositionTicks ?? 0L
                     },
                     IsDiscover = string.Equals(rowDef.Scope, "DiscoverOnly", StringComparison.OrdinalIgnoreCase),
                     ChildCount = childCount,
@@ -211,7 +211,7 @@ public class CopperFoxHomeController : ControllerBase
             var excluded = new HashSet<string>(config.ExcludedMyMediaIds ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
             var order = config.MyMediaLibraryOrder ?? new List<string>();
 
-            var views = _userViewManager.GetUserViews(new UserViewQuery { UserId = user.Id })
+            var views = _userViewManager.GetUserViews(new MediaBrowser.Controller.Entities.UserViewQuery { UserId = user.Id })
                 .Where(v => !excluded.Contains(v.Id.ToString("N")) && !excluded.Contains(v.Id.ToString()))
                 .ToList();
 
