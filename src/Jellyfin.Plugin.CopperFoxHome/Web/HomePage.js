@@ -174,7 +174,7 @@
 
     const playBtnHtml = isDiscover
       ? `<span style="width:40px;"></span>`
-      : `<button type="button" class="cf-hover-btn cf-btn-play" data-id="${item.Id}" title="Play" style="background:none;border:none;">
+      : `<button type="button" class="cf-hover-btn cf-btn-play itemAction" data-action="play" data-id="${item.Id}" title="Play" style="background:none;border:none;">
            <span class="cf-play-circle"><span class="material-icons play_arrow" style="font-size:26px;"></span></span>
          </button>`;
 
@@ -211,22 +211,15 @@
   }
 
   function bindCardInteractions(scopeEl) {
-  	scopeEl.querySelectorAll(".cf-btn-play").forEach(btn => {
+    scopeEl.querySelectorAll(".cf-btn-play").forEach(btn => {
       if (btn.dataset.bound) return;
       btn.dataset.bound = "1";
       btn.onclick = function (e) {
         e.preventDefault();
         e.stopPropagation();
         const id = btn.getAttribute("data-id");
-        if (window.Emby && Emby.importModule) {
-          Emby.importModule("./components/playback/playbackmanager").then(pm => {
-            const playbackManager = pm.default || pm;
-            playbackManager.play({ ids: [id], serverId: ApiClient.serverId() });
-          }).catch(() => {
-            window.location.hash = `#/details?id=${id}`;
-          });
-        } else {
-          window.location.hash = `#/details?id=${id}`;
+        if (window.playbackManager && typeof window.playbackManager.play === "function") {
+          window.playbackManager.play({ ids: [id], serverId: ApiClient.serverId() });
         }
       };
     });
