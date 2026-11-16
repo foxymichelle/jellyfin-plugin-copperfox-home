@@ -94,7 +94,7 @@ public class CopperFoxHomeController : ControllerBase
             }
             
             var allItems = ResolveRowItems(rowDef, user, discoverLibGuid, usedGenres, skip, out var dynamicTitle, out var hasMore);
-            var isClientOnlyRow = string.Equals(rowDef.RowType, "StreamingServices", StringComparison.OrdinalIgnoreCase);
+            var isClientOnlyRow = string.Equals(rowDef.RowType, "", StringComparison.OrdinalIgnoreCase);
 
             if (allItems.Count == 0 && !isClientOnlyRow && skip == 0)
             {
@@ -235,7 +235,7 @@ public class CopperFoxHomeController : ControllerBase
         if (string.Equals(rowDef.RowType, "MyMedia", StringComparison.OrdinalIgnoreCase))
         {
             if (skip > 0) return new List<BaseItem>();
-            dynamicTitle = string.IsNullOrWhiteSpace(rowDef.Title) ? "Media Folders" : rowDef.Title;
+            dynamicTitle = string.IsNullOrWhiteSpace(rowDef.Title) ? "" : rowDef.Title;
             var config = Plugin.Instance?.Configuration ?? new PluginConfiguration();
             var excluded = new HashSet<string>(config.ExcludedMyMediaIds ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
             var order = config.MyMediaLibraryOrder ?? new List<string>();
@@ -378,7 +378,7 @@ public class CopperFoxHomeController : ControllerBase
             if (skip > 0) return new List<BaseItem>();
             var isDiscover = string.Equals(rowDef.Scope, "DiscoverOnly", StringComparison.OrdinalIgnoreCase);
             dynamicTitle = string.IsNullOrWhiteSpace(rowDef.Title)
-                ? (isDiscover ? "Discover Featured" : "Featured")
+                ? (isDiscover ? "Discover More" : "")
                 : rowDef.Title;
 
             var query = new InternalItemsQuery(user)
