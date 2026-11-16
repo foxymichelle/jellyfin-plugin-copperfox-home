@@ -22,15 +22,18 @@ namespace Jellyfin.Plugin.CopperFoxHome.Api;
 [Produces(MediaTypeNames.Application.Json)]
 public class CopperFoxHomeController : ControllerBase
 {
-        private readonly ILibraryManager _libraryManager;
+    private readonly ILibraryManager _libraryManager;
     private readonly IUserManager _userManager;
+    private readonly IUserDataManager _userDataManager;
 
     public CopperFoxHomeController(
         ILibraryManager libraryManager,
-        IUserManager userManager)
+        IUserManager userManager,
+        IUserDataManager userDataManager)
     {
         _libraryManager = libraryManager;
         _userManager = userManager;
+        _userDataManager = userDataManager;
     }
 
 
@@ -68,15 +71,7 @@ public class CopperFoxHomeController : ControllerBase
             }
 
             var allItems = ResolveRowItems(rowDef, user, discoverLibGuid, usedGenres, skip, out var dynamicTitle, out var hasMore);
-            var isClientFetched =
-                string.Equals(rowDef.RowType, "Collection", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(rowDef.RowType, "MyMedia", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(rowDef.RowType, "ContinueAndUpNext", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(rowDef.RowType, "LatestMovies", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(rowDef.RowType, "LatestShows", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(rowDef.RowType, "StreamingServices", StringComparison.OrdinalIgnoreCase);
-
-            if (allItems.Count == 0 && !isClientFetched && skip == 0)
+                        if (allItems.Count == 0 && skip == 0)
             {
                 continue;
             }
@@ -92,12 +87,42 @@ public class CopperFoxHomeController : ControllerBase
                     : null;
                 var backdropCount = item.GetImages(MediaBrowser.Model.Entities.ImageType.Backdrop).Count();
                 var hasThumb = item.HasImage(MediaBrowser.Model.Entities.ImageType.Thumb);
+                var userData = _userDataManager.GetUserData(user, item);
+
+                string? seriesId = null;
+                string? seriesName = null;
+                int? seasonNum = null;
+                int? episodeNum = null;
+                string? parentThumbId = null;
+
+                if (item is MediaBrowser.Controller.Entities.TV.Episode ep)
+                {
+                    seriesId = ep.SeriesId != Guid.Empty ? ep.SeriesId.ToString("N") : null;
+                    seriesName = ep.SeriesName;
+                    seasonNum = ep.ParentIndexNumber;
+                    episodeNum = ep.IndexNumber;
+                    if (ep.Series != null)
+                    {
+                        childCount = ep.Series.GetChildren(user, false).Count;
+                        episodeCount = ep.Series.GetEpisodes(user, new DtoOptions(false), false).Count();
+                        if (ep.Series.HasImage(MediaBrowser.Model.Entities.ImageType.Thumb))
+                        {
+                            parentThumbId = ep.SeriesId.ToString("N");
+                        }
+                    }
+                }
 
                 return new
                 {
                     Id = item.Id.ToString("N"),
                     Name = item.Name,
                     Type = kind,
+                    CollectionType = (item as ICollectionFolder)?.CollectionType?.ToString(),
+                    SeriesId = seriesId,
+                    SeriesName = seriesName,
+                    ParentIndexNumber = seasonNum,
+                    IndexNumber = episodeNum,
+                    ParentThumbItemId = parentThumbId,
                     Overview = item.Overview,
                     Genres = item.Genres ?? Array.Empty<string>(),
                     PrimaryImageAspectRatio = 0.6666667,
@@ -106,9 +131,9 @@ public class CopperFoxHomeController : ControllerBase
                     BackdropImageTags = Enumerable.Range(0, backdropCount).Select(idx => idx.ToString()).ToArray(),
                     UserData = new
                     {
-                        Played = item.IsPlayed(user, null),
-                        IsFavorite = item.IsFavoriteOrLiked(user, null),
-                        PlaybackPositionTicks = 0L
+                        Played = userData.Played,
+                        IsFavorite = userData.IsFavorite,
+                        PlaybackPositionTicks = userData.PlaybackPositionTicks
                     },
                     IsDiscover = string.Equals(rowDef.Scope, "DiscoverOnly", StringComparison.OrdinalIgnoreCase),
                     ChildCount = childCount,
@@ -151,15 +176,145 @@ public class CopperFoxHomeController : ControllerBase
         dynamicTitle = rowDef.Title;
         hasMore = false;
         int pageSize = string.Equals(rowDef.ImageStyle, "Thumb", StringComparison.OrdinalIgnoreCase) ? 14 : 20;
-        
-        if (string.Equals(rowDef.RowType, "Collection", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(rowDef.RowType, "MyMedia", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(rowDef.RowType, "ContinueAndUpNext", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(rowDef.RowType, "LatestMovies", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(rowDef.RowType, "LatestShows", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(rowDef.RowType, "StreamingServices", StringComparison.OrdinalIgnoreCase))
+
+        if (string.Equals(rowDef.RowType, "Collection", StringComparison.OrdinalIgnoreCase) && Guid.TryParse(rowDef.TargetValue, out var colGuid))
         {
+            var colItem = _libraryManager.GetItemById(colGuid);
+            if (colItem is MediaBrowser.Controller.Entities.Movies.BoxSet boxSet)
+            {
+                var linked = boxSet.GetLinkedChildren();
+                hasMore = linked.Count > (skip + pageSize);
+                return linked.Skip(skip).Take(pageSize).ToList();
+            }
+            if (colItem is Folder folderCol)
+            {
+                var children = folderCol.GetChildren(user, true);
+                hasMore = children.Count > (skip + pageSize);
+                return children.Skip(skip).Take(pageSize).ToList();
+            }
             return new List<BaseItem>();
+        }
+
+        if (string.Equals(rowDef.RowType, "MyMedia", StringComparison.OrdinalIgnoreCase))
+        {
+            if (skip > 0) return new List<BaseItem>();
+            dynamicTitle = string.IsNullOrWhiteSpace(rowDef.Title) ? "My Media" : rowDef.Title;
+            var config = Plugin.Instance?.Configuration ?? new PluginConfiguration();
+            var excluded = new HashSet<string>(config.ExcludedMyMediaIds ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
+            var order = config.MyMediaLibraryOrder ?? new List<string>();
+
+            var views = _libraryManager.GetUserViews(user)
+                .Where(v => !excluded.Contains(v.Id.ToString("N")) && !excluded.Contains(v.Id.ToString()))
+                .ToList();
+
+            var ordered = new List<BaseItem>();
+            foreach (var idStr in order)
+            {
+                if (Guid.TryParse(idStr, out var g))
+                {
+                    var match = views.FirstOrDefault(v => v.Id == g);
+                    if (match != null) ordered.Add(match);
+                }
+            }
+            foreach (var v in views)
+            {
+                if (!ordered.Any(o => o.Id == v.Id)) ordered.Add(v);
+            }
+            return ordered;
+        }
+
+        if (string.Equals(rowDef.RowType, "ContinueAndUpNext", StringComparison.OrdinalIgnoreCase))
+        {
+            if (skip > 0) return new List<BaseItem>();
+            dynamicTitle = string.IsNullOrWhiteSpace(rowDef.Title) ? "Continue Watching" : rowDef.Title;
+
+            var resumeItems = _libraryManager.GetItemList(new InternalItemsQuery(user)
+            {
+                Recursive = true,
+                IsResumable = true,
+                IncludeItemTypes = new[] { BaseItemKind.Movie, BaseItemKind.Episode },
+                OrderBy = new[] { (ItemSortBy.DatePlayed, SortOrder.Descending) },
+                Limit = 30
+            });
+
+            var nextUpItems = _libraryManager.GetItemList(new InternalItemsQuery(user)
+            {
+                Recursive = true,
+                IsPlayed = false,
+                IncludeItemTypes = new[] { BaseItemKind.Episode },
+                OrderBy = new[] { (ItemSortBy.DatePlayed, SortOrder.Descending) },
+                Limit = 30
+            }).Where(x => x is MediaBrowser.Controller.Entities.TV.Episode ep && ep.Series != null && ep.Series.IsPlayed(user, null) == false);
+
+            var allCandidates = resumeItems.Concat(nextUpItems).ToList();
+            var latestBySeries = new Dictionary<Guid, MediaBrowser.Controller.Entities.TV.Episode>();
+
+            foreach (var item in allCandidates.OfType<MediaBrowser.Controller.Entities.TV.Episode>())
+            {
+                if (item.SeriesId == Guid.Empty) continue;
+                if (!latestBySeries.TryGetValue(item.SeriesId, out var existing))
+                {
+                    latestBySeries[item.SeriesId] = item;
+                }
+                else
+                {
+                    var curScore = ((item.ParentIndexNumber ?? 0) * 10000) + (item.IndexNumber ?? 0);
+                    var exScore = ((existing.ParentIndexNumber ?? 0) * 10000) + (existing.IndexNumber ?? 0);
+                    if (curScore > exScore) latestBySeries[item.SeriesId] = item;
+                }
+            }
+
+            var combined = new List<BaseItem>();
+            var seen = new HashSet<Guid>();
+            foreach (var item in allCandidates)
+            {
+                BaseItem chosen = item is MediaBrowser.Controller.Entities.TV.Episode ep && ep.SeriesId != Guid.Empty && latestBySeries.TryGetValue(ep.SeriesId, out var best)
+                    ? best
+                    : item;
+                if (seen.Add(chosen.Id))
+                {
+                    combined.Add(chosen);
+                }
+            }
+            return combined.Take(20).ToList();
+        }
+
+        if (string.Equals(rowDef.RowType, "LatestMovies", StringComparison.OrdinalIgnoreCase))
+        {
+            var isDiscover = string.Equals(rowDef.Scope, "DiscoverOnly", StringComparison.OrdinalIgnoreCase);
+            dynamicTitle = string.IsNullOrWhiteSpace(rowDef.Title)
+                ? (isDiscover ? "DISCOVER Latest Movies" : "Latest Movies")
+                : rowDef.Title;
+
+            var query = new InternalItemsQuery(user)
+            {
+                Recursive = true,
+                IncludeItemTypes = new[] { BaseItemKind.Movie },
+                OrderBy = new[] { (ItemSortBy.DateCreated, SortOrder.Descending), (ItemSortBy.SortName, SortOrder.Ascending) },
+                Limit = 100
+            };
+            var filtered = ApplyScopeFilter(_libraryManager.GetItemList(query), rowDef.Scope, discoverLibGuid).ToList();
+            hasMore = filtered.Count > (skip + pageSize);
+            return filtered.Skip(skip).Take(pageSize).ToList();
+        }
+
+        if (string.Equals(rowDef.RowType, "LatestShows", StringComparison.OrdinalIgnoreCase))
+        {
+            var isDiscover = string.Equals(rowDef.Scope, "DiscoverOnly", StringComparison.OrdinalIgnoreCase);
+            dynamicTitle = string.IsNullOrWhiteSpace(rowDef.Title)
+                ? (isDiscover ? "DISCOVER Latest Shows" : "Latest Shows")
+                : rowDef.Title;
+
+            var query = new InternalItemsQuery(user)
+            {
+                Recursive = true,
+                IncludeItemTypes = new[] { BaseItemKind.Series },
+                OrderBy = new[] { (ItemSortBy.DateCreated, SortOrder.Descending), (ItemSortBy.SortName, SortOrder.Ascending) },
+                Limit = 100
+            };
+            var filtered = ApplyScopeFilter(_libraryManager.GetItemList(query), rowDef.Scope, discoverLibGuid).ToList();
+            hasMore = filtered.Count > (skip + pageSize);
+            return filtered.Skip(skip).Take(pageSize).ToList();
         }
 
         if (string.Equals(rowDef.RowType, "Genre", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(rowDef.TargetValue))
