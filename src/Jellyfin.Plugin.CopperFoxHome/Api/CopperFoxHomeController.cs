@@ -70,8 +70,9 @@ public class CopperFoxHomeController : ControllerBase
                 continue;
             }
 
-            var allItems = ResolveRowItems(rowDef, user, discoverLibGuid, usedGenres, skip, out var dynamicTitle, out var hasMore);
-                        if (allItems.Count == 0 && skip == 0)
+            var isClientOnlyRow = string.Equals(rowDef.RowType, "StreamingServices", StringComparison.OrdinalIgnoreCase);
+
+            if (allItems.Count == 0 && !isClientOnlyRow && skip == 0)
             {
                 continue;
             }
@@ -207,10 +208,9 @@ public class CopperFoxHomeController : ControllerBase
             var excluded = new HashSet<string>(config.ExcludedMyMediaIds ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
             var order = config.MyMediaLibraryOrder ?? new List<string>();
 
-            var views = _libraryManager.GetItemList(new InternalItemsQuery(user)
-            {
-                IncludeItemTypes = new[] { BaseItemKind.UserView, BaseItemKind.CollectionFolder }
-            })                .ToList();
+            var views = _libraryManager.GetUserRootFolder().GetChildren(user, true)
+                .Where(v => !excluded.Contains(v.Id.ToString("N")) && !excluded.Contains(v.Id.ToString()))
+                .ToList();
 
             var ordered = new List<BaseItem>();
             foreach (var idStr in order)
