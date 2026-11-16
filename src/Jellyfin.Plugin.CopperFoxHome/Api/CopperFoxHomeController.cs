@@ -383,23 +383,23 @@ public class CopperFoxHomeController : ControllerBase
 
             var includeTags = (rowDef.TargetValue ?? string.Empty)
                 .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                .ToList();
 
             var excludeTags = (rowDef.ExcludeTags ?? string.Empty)
                 .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                .ToList();
 
             var query = new InternalItemsQuery(user)
             {
                 Recursive = true,
                 IncludeItemTypes = new[] { BaseItemKind.Movie, BaseItemKind.Series },
-                Limit = 500
+                Limit = 1000
             };
 
             var pool = ApplyScopeFilter(_libraryManager.GetItemList(query), rowDef.Scope, discoverLibGuid)
                 .Where(x => x.GetImages(MediaBrowser.Model.Entities.ImageType.Backdrop).Any() || x.HasImage(MediaBrowser.Model.Entities.ImageType.Thumb))
-                .Where(x => includeTags.Count == 0 || (x.Tags ?? Array.Empty<string>()).Any(t => includeTags.Contains(t)))
-                .Where(x => excludeTags.Count == 0 || !(x.Tags ?? Array.Empty<string>()).Any(t => excludeTags.Contains(t)))
+                .Where(x => includeTags.Count == 0 || (x.Tags ?? Array.Empty<string>()).Any(t => includeTags.Any(it => t.Contains(it, StringComparison.OrdinalIgnoreCase))))
+                .Where(x => excludeTags.Count == 0 || !(x.Tags ?? Array.Empty<string>()).Any(t => excludeTags.Any(et => t.Contains(et, StringComparison.OrdinalIgnoreCase))))
                 .ToList();
 
             hasMore = false;
