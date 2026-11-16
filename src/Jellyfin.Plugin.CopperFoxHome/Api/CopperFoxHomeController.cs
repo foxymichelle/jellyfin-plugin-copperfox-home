@@ -400,10 +400,39 @@ public class CopperFoxHomeController : ControllerBase
                 .Where(x => x.GetImages(MediaBrowser.Model.Entities.ImageType.Backdrop).Any() || x.HasImage(MediaBrowser.Model.Entities.ImageType.Thumb))
                 .Where(x => includeTags.Count == 0 || (x.Tags ?? Array.Empty<string>()).Any(t => includeTags.Any(it => t.Contains(it, StringComparison.OrdinalIgnoreCase))))
                 .Where(x => excludeTags.Count == 0 || !(x.Tags ?? Array.Empty<string>()).Any(t => excludeTags.Any(et => t.Contains(et, StringComparison.OrdinalIgnoreCase))))
+                .OrderBy(_ => Random.Shared.Next())
                 .ToList();
 
+            // Map each movie ID to its BoxSet collection ID so only 1 movie per collection is picked
+            var movieToBoxSet = new Dictionary<Guid, Guid>();
+            var boxSets = _libraryManager.GetItemList(new InternalItemsQuery(user)
+            {
+                Recursive = true,
+                IncludeItemTypes = new[] { BaseItemKind.BoxSet }
+            }).OfType<MediaBrowser.Controller.Entities.Movies.BoxSet>();
+
+            foreach (var bs in boxSets)
+            {
+                foreach (var child in bs.GetLinkedChildren())
+                {
+                    movieToBoxSet.TryAdd(child.Id, bs.Id);
+                }
+            }
+
+            var seenCollections = new HashSet<Guid>();
+            var selected = new List<BaseItem>();
+            foreach (var item in pool)
+            {
+                if (movieToBoxSet.TryGetValue(item.Id, out var boxSetId))
+                {
+                    if (!seenCollections.Add(boxSetId)) continue;
+                }
+                selected.Add(item);
+                if (selected.Count >= 10) break;
+            }
+
             hasMore = false;
-            return pool.OrderBy(_ => Random.Shared.Next()).Take(10).ToList();
+            return selected;
         }
 
         if (string.Equals(rowDef.RowType, "Genre", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(rowDef.TargetValue))
