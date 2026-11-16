@@ -13,7 +13,6 @@ using MediaBrowser.Model.Querying;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using MediaBrowser.Controller.Library;
 
 namespace Jellyfin.Plugin.CopperFoxHome.Api;
 
@@ -211,8 +210,7 @@ public class CopperFoxHomeController : ControllerBase
             var excluded = new HashSet<string>(config.ExcludedMyMediaIds ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
             var order = config.MyMediaLibraryOrder ?? new List<string>();
 
-            var views = _userViewManager.GetUserViews(new MediaBrowser.Controller.Entities.UserViewQuery { UserId = user.Id })
-                .Where(v => !excluded.Contains(v.Id.ToString("N")) && !excluded.Contains(v.Id.ToString()))
+            var views = _userViewManager.GetUserViews(new MediaBrowser.Model.Querying.UserViewQuery { UserId = user.Id })                .Where(v => !excluded.Contains(v.Id.ToString("N")) && !excluded.Contains(v.Id.ToString()))
                 .ToList();
 
             var ordered = new List<BaseItem>();
