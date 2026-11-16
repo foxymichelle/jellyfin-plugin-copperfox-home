@@ -25,15 +25,18 @@ public class CopperFoxHomeController : ControllerBase
     private readonly ILibraryManager _libraryManager;
     private readonly IUserManager _userManager;
     private readonly IUserDataManager _userDataManager;
+    private readonly IUserViewManager _userViewManager;
 
     public CopperFoxHomeController(
         ILibraryManager libraryManager,
         IUserManager userManager,
-        IUserDataManager userDataManager)
+        IUserDataManager userDataManager,
+        IUserViewManager userViewManager)
     {
         _libraryManager = libraryManager;
         _userManager = userManager;
         _userDataManager = userDataManager;
+        _userViewManager = userViewManager;
     }
 
 
@@ -103,7 +106,11 @@ public class CopperFoxHomeController : ControllerBase
                     episodeNum = ep.IndexNumber;
                     if (ep.Series != null)
                     {
-                        childCount = ep.Series.GetChildren(user, false).Count;
+                        childCount = _libraryManager.GetItemList(new InternalItemsQuery(user)
+                        {
+                            Parent = ep.Series,
+                            IncludeItemTypes = new[] { BaseItemKind.Season }
+                        }).Count;
                         episodeCount = ep.Series.GetEpisodes(user, new DtoOptions(false), false).Count();
                         if (ep.Series.HasImage(MediaBrowser.Model.Entities.ImageType.Thumb))
                         {
@@ -203,7 +210,7 @@ public class CopperFoxHomeController : ControllerBase
             var excluded = new HashSet<string>(config.ExcludedMyMediaIds ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
             var order = config.MyMediaLibraryOrder ?? new List<string>();
 
-            var views = _libraryManager.GetUserViews(user)
+            var views = _userViewManager.GetUserViews(new UserViewQuery { UserId = user.Id })
                 .Where(v => !excluded.Contains(v.Id.ToString("N")) && !excluded.Contains(v.Id.ToString()))
                 .ToList();
 
