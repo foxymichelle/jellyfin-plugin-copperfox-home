@@ -25,18 +25,15 @@ public class CopperFoxHomeController : ControllerBase
     private readonly ILibraryManager _libraryManager;
     private readonly IUserManager _userManager;
     private readonly IUserDataManager _userDataManager;
-    private readonly IUserViewManager _userViewManager;
 
     public CopperFoxHomeController(
         ILibraryManager libraryManager,
         IUserManager userManager,
-        IUserDataManager userDataManager,
-        IUserViewManager userViewManager)
+        IUserDataManager userDataManager)
     {
         _libraryManager = libraryManager;
         _userManager = userManager;
         _userDataManager = userDataManager;
-        _userViewManager = userViewManager;
     }
 
 
@@ -210,8 +207,10 @@ public class CopperFoxHomeController : ControllerBase
             var excluded = new HashSet<string>(config.ExcludedMyMediaIds ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
             var order = config.MyMediaLibraryOrder ?? new List<string>();
 
-            var views = _userViewManager.GetUserViews(new MediaBrowser.Model.Querying.UserViewQuery { UserId = user.Id })                .Where(v => !excluded.Contains(v.Id.ToString("N")) && !excluded.Contains(v.Id.ToString()))
-                .ToList();
+            var views = _libraryManager.GetItemList(new InternalItemsQuery(user)
+            {
+                IncludeItemTypes = new[] { BaseItemKind.UserView, BaseItemKind.CollectionFolder }
+            })                .ToList();
 
             var ordered = new List<BaseItem>();
             foreach (var idStr in order)
