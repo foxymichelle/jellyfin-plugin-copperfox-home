@@ -13,6 +13,7 @@ using MediaBrowser.Model.Querying;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using MediaBrowser.Controller.Library;
 
 namespace Jellyfin.Plugin.CopperFoxHome.Api;
 
