@@ -41,6 +41,21 @@
       .cf-service-tile img { max-width: 78%; max-height: 56%; object-fit: contain; filter: brightness(0) invert(1); }
       .cf-scroll-row { display: flex; flex-wrap: nowrap; overflow-x: auto; padding: 8px 3.3% 16px 3.3%; gap: 14px; -webkit-overflow-scrolling: touch; scrollbar-width: none; -ms-overflow-style: none; }
       .cf-scroll-row::-webkit-scrollbar { display: none; }
+      .cf-slider-wrap { position: relative; width: 93.4%; margin: 8px 3.3% 24px 3.3%; height: 480px; border-radius: 10px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.65); cursor: pointer; background: #111; }
+      .cf-slider-slide { position: absolute; inset: 0; background-size: cover; background-position: center 20%; opacity: 0; transition: opacity 0.45s ease; pointer-events: none; }
+      .cf-slider-slide.active { opacity: 1; pointer-events: auto; }
+      .cf-slider-gradient { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.15) 40%, rgba(0,0,0,0.85) 100%); pointer-events: none; }
+      .cf-slider-header { position: absolute; top: 20px; left: 26px; z-index: 4; font-size: 1.25em; font-weight: 700; color: #fff; text-shadow: 0 2px 8px rgba(0,0,0,0.8); pointer-events: none; }
+      .cf-slider-caption { position: absolute; bottom: 26px; left: 28px; right: 90px; z-index: 4; color: #fff; pointer-events: none; }
+      .cf-slider-caption h3 { margin: 0 0 6px 0; font-size: 26px; font-weight: 700; text-shadow: 0 2px 10px rgba(0,0,0,0.9); }
+      .cf-slider-caption p { margin: 0; font-size: 14px; opacity: 0.85; max-width: 720px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+      .cf-slider-arrow { position: absolute; top: 50%; transform: translateY(-50%); z-index: 5; width: 44px; height: 44px; border-radius: 50%; border: none; background: rgba(0,0,0,0.65); color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.18s, transform 0.18s; }
+      .cf-slider-arrow:hover { background: rgba(255,255,255,0.85); color: #000; transform: translateY(-50%) scale(1.08); }
+      .cf-slider-prev { left: 16px; }
+      .cf-slider-next { right: 16px; }
+      .cf-slider-dots { position: absolute; bottom: 22px; right: 26px; z-index: 5; display: flex; gap: 6px; }
+      .cf-slider-dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.35); transition: background 0.2s, transform 0.2s; }
+      .cf-slider-dot.active { background: #fff; transform: scale(1.25); }
       .cf-service-grid { display: flex !important; flex-direction: row !important; flex-wrap: wrap !important; align-items: flex-start !important; gap: 16px !important; width: 100% !important; }
       .cf-service-grid .card { width: 182px !important; min-width: 182px !important; max-width: 182px !important; flex: 0 0 182px !important; }
     `;
@@ -341,7 +356,69 @@
     for (const row of rows) {
       if (!row.items || !row.items.length) continue;
 
-      const styleMode = row.imageStyle || ((row.rowType === "MyMedia" || row.rowType === "ContinueAndUpNext" || row.rowType === "LatestMovies" || row.rowType === "LatestShows" || row.rowType === "StreamingServices") ? "Thumb" : "Poster");
+      if (row.rowType === "SliderRow") {
+        let section = document.getElementById(row.key);
+        if (!section) {
+          section = document.createElement("div");
+          section.id = row.key;
+          section.className = "cf-custom-section";
+          section.style.cssText = "display:block;width:100%;";
+        }
+
+        const displayTitle = (row.title || "").replace(/:$/, "");
+        const slidesHtml = row.items.map((item, idx) => {
+          const bgUrl = (Array.isArray(item.BackdropImageTags) && item.BackdropImageTags.length > 0)
+            ? ApiClient.getImageUrl(item.Id, { type: "Backdrop", maxWidth: 1600 })
+            : getThumbOrBackdropUrl(item, 1600);
+          const href = getItemHref(item);
+          return `
+            <div class="cf-slider-slide ${idx === 0 ? "active" : ""}" data-idx="${idx}" data-href="${href}" style="background-image:url('${bgUrl}');">
+              <div class="cf-slider-gradient"></div>
+              <div class="cf-slider-caption">
+                <h3>${item.Name || ""}</h3>
+                ${item.Overview ? `<p>${item.Overview}</p>` : ""}
+              </div>
+            </div>`;
+        }).join("");
+
+        const dotsHtml = row.items.map((_, idx) => `<span class="cf-slider-dot ${idx === 0 ? "active" : ""}" data-idx="${idx}"></span>`).join("");
+
+        section.innerHTML = `
+          <div class="cf-slider-wrap" data-active="0" data-count="${row.items.length}">
+            <div class="cf-slider-header">${displayTitle}</div>
+            ${slidesHtml}
+            <button type="button" class="cf-slider-arrow cf-slider-prev" aria-label="Previous"><span class="material-icons chevron_left" style="font-size:30px;"></span></button>
+            <button type="button" class="cf-slider-arrow cf-slider-next" aria-label="Next"><span class="material-icons chevron_right" style="font-size:30px;"></span></button>
+            <div class="cf-slider-dots">${dotsHtml}</div>
+          </div>`;
+
+        container.appendChild(section);
+
+        const wrap = section.querySelector(".cf-slider-wrap");
+        const goSlide = (nextIdx) => {
+          const count = parseInt(wrap.getAttribute("data-count"), 10);
+          const target = ((nextIdx % count) + count) % count;
+          wrap.setAttribute("data-active", String(target));
+          wrap.querySelectorAll(".cf-slider-slide").forEach(el => el.classList.toggle("active", parseInt(el.getAttribute("data-idx"), 10) === target));
+          wrap.querySelectorAll(".cf-slider-dot").forEach(el => el.classList.toggle("active", parseInt(el.getAttribute("data-idx"), 10) === target));
+        };
+
+        wrap.querySelector(".cf-slider-prev").onclick = (e) => {
+          e.stopPropagation();
+          goSlide(parseInt(wrap.getAttribute("data-active"), 10) - 1);
+        };
+        wrap.querySelector(".cf-slider-next").onclick = (e) => {
+          e.stopPropagation();
+          goSlide(parseInt(wrap.getAttribute("data-active"), 10) + 1);
+        };
+        wrap.onclick = () => {
+          const activeSlide = wrap.querySelector(".cf-slider-slide.active");
+          if (activeSlide) window.location.hash = activeSlide.getAttribute("data-href");
+        };
+        continue;
+      }
+
+      const styleMode = row.imageStyle || ((row.rowType === "MyMedia" || row.rowType === "ContinueAndUpNext" || row.rowType === "RecentlyAdded" || row.rowType === "LatestMovies" || row.rowType === "LatestShows" || row.rowType === "StreamingServices") ? "Thumb" : "Poster");
       const isContinueRow = row.rowType === "ContinueAndUpNext";
       const isDiscoverRow = row.scope === "DiscoverOnly";
       const cardsHtml = row.items.map(item => renderCardHtml(item, styleMode, isContinueRow, isDiscoverRow)).join("") + renderLoadMoreCard(row);

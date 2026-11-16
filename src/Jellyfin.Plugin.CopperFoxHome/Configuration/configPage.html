@@ -120,7 +120,8 @@
                             return '<option value="' + c.Id + '"' + (row.TargetValue === c.Id ? ' selected' : '') + '>' + c.Name + ' (' + c.Type + ')</option>';
                         }).join("");
 
-                    var targetPlaceholder = row.RowType === "Genre" ? "Genre (e.g. Horror, Comedy)" : "Include tags (𝘤𝘰𝘮𝘮𝘢-𝘴𝘦𝘱𝘢𝘳𝘢𝘵𝘦𝘥)";
+                    var targetPlaceholder = row.RowType === "Genre" ? "Include genres (𝘤𝘰𝘮𝘮𝘢-𝘴𝘦𝘱𝘢𝘳𝘢𝘵𝘦𝘥)" : "Include tags (𝘤𝘰𝘮𝘮𝘢-𝘴𝘦𝘱𝘢𝘳𝘢𝘵𝘦𝘥)";
+                    var excludePlaceholder = row.RowType === "Genre" ? "Exclude genres (𝘤𝘰𝘮𝘮𝘢-𝘴𝘦𝘱𝘢𝘳𝘢𝘵𝘦𝘥)" : "Exclude tags (𝘤𝘰𝘮𝘮𝘢-𝘴𝘦𝘱𝘢𝘳𝘢𝘵𝘦𝘥)";
                     var targetHtml = isCollection
                         ? '<select class="row-target" style="width:100%;box-sizing:border-box;padding:9px;font-size:14px;background:#181818;color:#fff;border:1px solid #444;border-radius:4px;">' + optionsHtml + '</select>'
                         : '<input type="text" class="row-target" value="' + (row.TargetValue || "") + '" placeholder="' + targetPlaceholder + '" style="width:100%;box-sizing:border-box;padding:9px;font-size:14px;background:#181818;color:#fff;border:1px solid #444;border-radius:4px;" />';
@@ -133,7 +134,7 @@
                         secondRowHtml =
                             '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:12px;">' +
                                 '<div>' + targetHtml + '</div>' +
-                                '<div><input type="text" class="row-exclude" value="' + (row.ExcludeTags || "") + '" placeholder="Exclude tags (𝘤𝘰𝘮𝘮𝘢-𝘴𝘦𝘱𝘢𝘳𝘢𝘵𝘦𝘥)" style="width:100%;box-sizing:border-box;padding:9px;font-size:14px;background:#181818;color:#fff;border:1px solid #444;border-radius:4px;" /></div>' +
+                                '<div><input type="text" class="row-exclude" value="' + (row.ExcludeTags || "") + '" placeholder="' + excludePlaceholder + '" style="width:100%;box-sizing:border-box;padding:9px;font-size:14px;background:#181818;color:#fff;border:1px solid #444;border-radius:4px;" /></div>' +
                                 '<div style="display:flex;align-items:center;">' +
                                     '<label style="cursor:pointer;margin:0;font-size:14px;display:flex;align-items:center;"><input type="checkbox" class="row-group" ' + (row.GroupIntoCollections ? 'checked' : '') + ' style="margin-right:8px;" />Group Collections</label>' +
                                     delBtnHtml +
@@ -162,8 +163,7 @@
                             '</div>';
                     }
 
-                    var radioColHtml = row.RowType === "StreamingServices"
-                        ? '<div style="min-width:95px;"></div>'
+                    var radioColHtml = (row.RowType === "StreamingServices" || row.RowType === "SliderRow")                        ? '<div style="min-width:95px;"></div>'
                         : '<div style="display:flex;flex-direction:column;justify-content:center;gap:8px;min-width:95px;border-left:1px solid rgba(255,255,255,0.12);padding-left:14px;">' +
                               '<label style="cursor:pointer;font-size:14px;display:flex;align-items:center;margin:0;"><input type="radio" name="imgStyle_' + idx + '" class="row-img-style" value="Poster" ' + (imgStyle === "Poster" ? 'checked' : '') + ' style="margin-right:6px;" />Poster</label>' +
                               '<label style="cursor:pointer;font-size:14px;display:flex;align-items:center;margin:0;"><input type="radio" name="imgStyle_' + idx + '" class="row-img-style" value="Thumb" ' + (imgStyle === "Thumb" ? 'checked' : '') + ' style="margin-right:6px;" />Thumb</label>' +
@@ -187,8 +187,10 @@
                                 '<div><select class="row-type" style="width:100%;box-sizing:border-box;padding:9px;font-size:14px;background:#181818;color:#fff;border:3px solid #666;border-radius:4px;">' +
                                     '<option value="MyMedia"' + (row.RowType === "MyMedia" ? " selected" : "") + '>My Media</option>' +
                                     '<option value="ContinueAndUpNext"' + (row.RowType === "ContinueAndUpNext" ? " selected" : "") + '>Continue &amp; Up Next</option>' +
-                                    '<option value="LatestMovies"' + (row.RowType === "LatestMovies" ? " selected" : "") + '>Latest Movies</option>' +
-                                    '<option value="LatestShows"' + (row.RowType === "LatestShows" ? " selected" : "") + '>Latest Shows</option>' +
+                                    '<option value="RecentlyAdded"' + (row.RowType === "RecentlyAdded" ? " selected" : "") + '>Recently Added</option>' +
+                                    '<option value="LatestMovies"' + (row.RowType === "LatestMovies" ? " selected" : "") + '>Recently Added Movies</option>' +
+                                    '<option value="LatestShows"' + (row.RowType === "LatestShows" ? " selected" : "") + '>Recently Added Shows</option>' +
+                                    '<option value="SliderRow"' + (row.RowType === "SliderRow" ? " selected" : "") + '>Slider Row</option>' +
                                     '<option value="StreamingServices"' + (row.RowType === "StreamingServices" ? " selected" : "") + '>Streaming Services</option>' +
                                     '<option value="Collection"' + (row.RowType === "Collection" ? " selected" : "") + '>Collection / Playlist</option>' +
                                     '<option value="Tag"' + (row.RowType === "Tag" || row.RowType === "Keyword" ? " selected" : "") + '>Tag Match</option>' +
@@ -209,8 +211,8 @@
                     card.querySelector(".row-type").onchange = function (e) {
                         var newType = e.target.value;
                         currentRows[idx].RowType = newType;
-                        currentRows[idx].GroupIntoCollections = (newType !== "Collection" && newType !== "MyMedia" && newType !== "ContinueAndUpNext" && newType !== "LatestMovies" && newType !== "LatestShows" && newType !== "StreamingServices");
-                        if (newType === "MyMedia" || newType === "ContinueAndUpNext" || newType === "LatestMovies" || newType === "LatestShows" || newType === "StreamingServices") {
+                        currentRows[idx].GroupIntoCollections = (newType !== "Collection" && newType !== "MyMedia" && newType !== "ContinueAndUpNext" && newType !== "RecentlyAdded" && newType !== "LatestMovies" && newType !== "LatestShows" && newType !== "StreamingServices" && newType !== "SliderRow");
+                        if (newType === "MyMedia" || newType === "ContinueAndUpNext" || newType === "RecentlyAdded" || newType === "LatestMovies" || newType === "LatestShows" || newType === "StreamingServices" || newType === "SliderRow") {
                             currentRows[idx].ImageStyle = "Thumb";
                         }
                         renderRows();

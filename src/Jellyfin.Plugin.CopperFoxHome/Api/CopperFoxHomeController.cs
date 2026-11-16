@@ -235,7 +235,7 @@ public class CopperFoxHomeController : ControllerBase
         if (string.Equals(rowDef.RowType, "MyMedia", StringComparison.OrdinalIgnoreCase))
         {
             if (skip > 0) return new List<BaseItem>();
-            dynamicTitle = string.IsNullOrWhiteSpace(rowDef.Title) ? "My Media" : rowDef.Title;
+            dynamicTitle = string.IsNullOrWhiteSpace(rowDef.Title) ? "Media Folders" : rowDef.Title;
             var config = Plugin.Instance?.Configuration ?? new PluginConfiguration();
             var excluded = new HashSet<string>(config.ExcludedMyMediaIds ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
             var order = config.MyMediaLibraryOrder ?? new List<string>();
@@ -320,7 +320,7 @@ public class CopperFoxHomeController : ControllerBase
         {
             var isDiscover = string.Equals(rowDef.Scope, "DiscoverOnly", StringComparison.OrdinalIgnoreCase);
             dynamicTitle = string.IsNullOrWhiteSpace(rowDef.Title)
-                ? (isDiscover ? "DISCOVER Latest Movies" : "Latest Movies")
+                ? (isDiscover ? "Dicscover More Movies" : "Recently Added Movies")
                 : rowDef.Title;
 
             var query = new InternalItemsQuery(user)
@@ -339,7 +339,7 @@ public class CopperFoxHomeController : ControllerBase
         {
             var isDiscover = string.Equals(rowDef.Scope, "DiscoverOnly", StringComparison.OrdinalIgnoreCase);
             dynamicTitle = string.IsNullOrWhiteSpace(rowDef.Title)
-                ? (isDiscover ? "DISCOVER Latest Shows" : "Latest Shows")
+                ? (isDiscover ? "Discover More Shows" : "Recently Added Shows")
                 : rowDef.Title;
 
             var query = new InternalItemsQuery(user)
@@ -354,20 +354,81 @@ public class CopperFoxHomeController : ControllerBase
             return filtered.Skip(skip).Take(pageSize).ToList();
         }
 
+        if (string.Equals(rowDef.RowType, "RecentlyAdded", StringComparison.OrdinalIgnoreCase))
+        {
+            var isDiscover = string.Equals(rowDef.Scope, "DiscoverOnly", StringComparison.OrdinalIgnoreCase);
+            dynamicTitle = string.IsNullOrWhiteSpace(rowDef.Title)
+                ? (isDiscover ? "Discover More" : "Recently Added")
+                : rowDef.Title;
+
+            var query = new InternalItemsQuery(user)
+            {
+                Recursive = true,
+                IncludeItemTypes = new[] { BaseItemKind.Movie, BaseItemKind.Series },
+                OrderBy = new[] { (ItemSortBy.DateCreated, SortOrder.Descending), (ItemSortBy.SortName, SortOrder.Ascending) },
+                Limit = 100
+            };
+            var filtered = ApplyScopeFilter(_libraryManager.GetItemList(query), rowDef.Scope, discoverLibGuid).ToList();
+            hasMore = filtered.Count > (skip + pageSize);
+            return filtered.Skip(skip).Take(pageSize).ToList();
+        }
+
+        if (string.Equals(rowDef.RowType, "SliderRow", StringComparison.OrdinalIgnoreCase))
+        {
+            if (skip > 0) return new List<BaseItem>();
+            var isDiscover = string.Equals(rowDef.Scope, "DiscoverOnly", StringComparison.OrdinalIgnoreCase);
+            dynamicTitle = string.IsNullOrWhiteSpace(rowDef.Title)
+                ? (isDiscover ? "Discover Featured" : "Featured")
+                : rowDef.Title;
+
+            var query = new InternalItemsQuery(user)
+            {
+                Recursive = true,
+                IncludeItemTypes = new[] { BaseItemKind.Movie, BaseItemKind.Series },
+                Limit = 300
+            };
+            var pool = ApplyScopeFilter(_libraryManager.GetItemList(query), rowDef.Scope, discoverLibGuid)
+                .Where(x => x.GetImages(MediaBrowser.Model.Entities.ImageType.Backdrop).Any() || x.HasImage(MediaBrowser.Model.Entities.ImageType.Thumb))
+                .ToList();
+
+            var seed = (rowDef.Title ?? "Slider").GetHashCode() ^ DateTime.UtcNow.DayOfYear;
+            var rng = new Random(seed);
+            hasMore = false;
+            return pool.OrderBy(_ => rng.Next()).Take(10).ToList();
+        }
+
         if (string.Equals(rowDef.RowType, "Genre", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(rowDef.TargetValue))
         {
-            var genreName = rowDef.TargetValue.Trim();
-            usedGenres.Add(genreName);
-            dynamicTitle = string.IsNullOrWhiteSpace(rowDef.Title) ? genreName : rowDef.Title;
+            var includeGenres = rowDef.TargetValue
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .ToList();
+
+            var excludeGenres = (rowDef.ExcludeTags ?? string.Empty)
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var g in includeGenres)
+            {
+                usedGenres.Add(g);
+            }
+
+            dynamicTitle = string.IsNullOrWhiteSpace(rowDef.Title)
+                ? string.Join(" & ", includeGenres)
+                : rowDef.Title;
 
             var genreQuery = new InternalItemsQuery(user)
             {
                 Recursive = true,
                 IncludeItemTypes = new[] { BaseItemKind.Movie, BaseItemKind.Series },
-                Genres = new[] { genreName },
-                Limit = 250
+                Genres = includeGenres.ToArray(),
+                Limit = 400
             };
-            return ApplyPostFilters(_libraryManager.GetItemList(genreQuery), rowDef, user, discoverLibGuid, shuffle: true, skip, pageSize, out hasMore);
+
+            var results = _libraryManager.GetItemList(genreQuery)
+                .Where(item => excludeGenres.Count == 0 ||
+                               !(item.Genres ?? Array.Empty<string>()).Any(g => excludeGenres.Contains(g)));
+
+            return ApplyPostFilters(results, rowDef, user, discoverLibGuid, shuffle: true, skip, pageSize, out hasMore);
         }
 
         if (rowDef.RowType.StartsWith("TopGenre", StringComparison.OrdinalIgnoreCase))
@@ -398,7 +459,7 @@ public class CopperFoxHomeController : ControllerBase
             usedGenres.Add(chosenGenre);
             var isDiscover = string.Equals(rowDef.Scope, "DiscoverOnly", StringComparison.OrdinalIgnoreCase);
             dynamicTitle = string.IsNullOrWhiteSpace(rowDef.Title)
-                ? (isDiscover ? $"DISCOVER More of {chosenGenre}" : $"More of {chosenGenre}")
+                ? (isDiscover ? $"Discover More of {chosenGenre}" : $"Explore {chosenGenre}")
                 : rowDef.Title.Replace("{Genre}", chosenGenre);
 
             var recQuery = new InternalItemsQuery(user)
@@ -449,7 +510,7 @@ public class CopperFoxHomeController : ControllerBase
 
             var isDiscoverByw = string.Equals(rowDef.Scope, "DiscoverOnly", StringComparison.OrdinalIgnoreCase);
             dynamicTitle = string.IsNullOrWhiteSpace(rowDef.Title)
-                ? (isDiscoverByw ? $"DISCOVER More Like {recent.Name}" : $"Because You Watched {recent.Name}")
+                ? (isDiscoverByw ? $"Discover More like {recent.Name}" : $"Because you watched {recent.Name}")
                 : rowDef.Title;
             var seedGenres = new HashSet<string>(recent.Genres, StringComparer.OrdinalIgnoreCase);
             var seedTags = new HashSet<string>(recent.Tags ?? Array.Empty<string>(), StringComparer.OrdinalIgnoreCase);

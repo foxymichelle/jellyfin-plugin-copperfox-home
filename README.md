@@ -23,17 +23,44 @@ The C# server plugin exposes the CopperFoxHome Rows API endpoint and a dashboard
 
 ---
 
-## 2. Additional Web Client Files on the Jellyfin Server
+## 2. Additional Web Client File on the Jellyfin Server
 
-To render the custom rows and styling on the Jellyfin web interface, two files are mounted and served from the Jellyfin `/config` directory (`/opt/stacks/jellyfin/config/`):
+To render the custom rows and styling on the Jellyfin web interface, a file is mounted and served from the Jellyfin `/config` directory (`/opt/stacks/jellyfin/config/`):
 
-* **`custom-index.html`**
+* **`copperfox-home-index.html`**
   * Mounted over `/jellyfin/jellyfin-web/index.html` in the Jellyfin container.
-  * Loads `custom-home.js` with a cache-busting query string (e.g., `custom-home.js?v=36`), allowing Cmd+shift+R to reload the page to show the newest saved version.
-* **`custom-home.js`**
-  * **Home Screen Renderer:** Fetches `/CopperFoxHome/Rows` in two batches (first 3 rows immediately, remaining rows after) for fast initial paint and renders horizontal scroll rows without visible scrollbars.
-  * **Card Styling & Hover Overlays:** Applies transparent card backgrounds, hover zoom, copper progress bars, permanent top-right `S:E` badges on Continue Watching, and hover overlays featuring top-left metadata badges (`movie`, `collection | x`, `xS | yE` - indicating number of items in collection or number of seasons/episodes for a show), bottom-left watched toggle, bottom-center play button, and bottom-right favorite toggle. Discover item hover only displays a 'movie' or 'show' badge and favorite toggle.
-  * **Context Menu & Sub-Pages:** Adds right-click and double-click quick menus (`Open Details`, `Mark Watched`, `Favorite`, `Add to Collection/Playlist`, `Edit Metadata/Images`, `Refresh Metadata`), renders `#/list.html?cfService=...` streaming service grids, and injects the **CopperFox Home** shortcut into the user profile menu.
+  * Loads `HomePage.js` file in the plugin that includes:
+    * **Home Screen Renderer:** Fetches `/CopperFoxHome/Rows` in two batches (first 3 rows immediately, remaining rows after) for fast initial paint and renders horizontal scroll rows without visible scrollbars.
+    * **Card Styling & Hover Overlays:** Applies transparent card backgrounds, hover zoom, copper progress bars, permanent top-right `S:E` badges on Continue Watching, and hover overlays featuring top-left metadata badges (`movie`, `collection | x`, `xS | yE` - indicating number of items in collection or number of seasons/episodes for a show), bottom-left watched toggle, bottom-center play button, and bottom-right favorite toggle. Discover item hover only displays a 'movie' or 'show' badge and favorite toggle.
+    * **Context Menu & Sub-Pages:** Adds right-click and double-click quick menus (`Open Details`, `Mark Watched`, `Favorite`, `Add to Collection/Playlist`, `Edit Metadata/Images`, `Refresh Metadata`), renders `#/list.html?cfService=...` streaming service grids, and injects the **CopperFox Home** shortcut into the user profile menu.
+
+Ensure `/opt/stacks/jellyfin/config/copperfox-home-index.html` is mapped into the container:
+   ```yaml
+   volumes:
+     - /opt/stacks/jellyfin/config:/config
+     - /opt/stacks/jellyfin/config/copperfox-home-index.html:/jellyfin/jellyfin-web/index.html:ro
+   ```
+
+### Major Jellyfin Update Note (`copperfox-home-index.html`)
+Because `custom-index.html` overrides Jellyfin's built-in `/jellyfin/jellyfin-web/index.html` via a read-only Docker volume mount, a major Jellyfin version upgrade (e.g., `10.12` to `10.13`) may change the hashed bundle filenames inside Jellyfin's default `index.html`.
+
+If the Jellyfin web interface fails to load or shows a blank screen after a major update:
+1. Temporarily comment out the `copperfox-home-index.html` volume mount in `docker-compose.yml` and restart the container so Jellyfin exposes its fresh `index.html`:
+   ```bash
+   docker restart jellyfin
+   ```
+2. Copy the updated default `index.html` from the container into the `/config` folder:
+   ```bash
+   docker cp jellyfin:/jellyfin/jellyfin-web/index.html /opt/stacks/jellyfin/config/copperfox-home-index.html
+   ```
+3. Re-inject the plugin ClientScript script tag right before `</body>` in `/opt/stacks/jellyfin/config/custom-index.html`:
+   ```bash
+   sed -i 's|</body>|<script src="/CopperFoxHome/ClientScript"></script></body>|' /opt/stacks/jellyfin/config/custom-index.html
+   ```
+4. Uncomment the `copperfox-home-index.html` volume mount in `docker-compose.yml` and restart Jellyfin:
+   ```bash
+   docker restart jellyfin
+   ```
 
 ---
 
@@ -59,46 +86,9 @@ The Roku client consumes the same `/CopperFoxHome/Rows` endpoint so row order, l
 ## 4. Quick Setup & Build Checklist
 
 ### Jellyfin Plugin Build (`Jellyfin.Plugin.CopperFoxHome`)
-1. Build the plugin DLL via GitHub Actions or locally with the .NET SDK:
-   ```bash
-   dotnet publish src/Jellyfin.Plugin.CopperFoxHome/Jellyfin.Plugin.CopperFoxHome.csproj -c Release -o ./publish
-   ```
-2. Copy `Jellyfin.Plugin.CopperFoxHome.dll` and `meta.json` into `/opt/stacks/jellyfin/config/plugins/CopperFoxHome/`.
-3. Restart Jellyfin and configure your rows under **Dashboard > Plugins > CopperFox Home** (and set **User Settings > Home > Home Sections 1–7** to **None**).
-
-### Jellyfin Web Injection (`docker-compose.yml`)
-1. Ensure `/opt/stacks/jellyfin/config/custom-index.html` and `/opt/stacks/jellyfin/config/custom-home.js` are mapped into the container:
-   ```yaml
-   volumes:
-     - /opt/stacks/jellyfin/config:/config
-     - /opt/stacks/jellyfin/config/custom-index.html:/jellyfin/jellyfin-web/index.html:ro
-     - /opt/stacks/jellyfin/config/custom-home.js:/jellyfin/jellyfin-web/custom-home.js:ro
-   ```
-2. Whenever `custom-home.js` is updated, bump the query parameter in `custom-index.html` then restart Jellyfin from Dockge:
-   ```bash
-   sed -i 's|custom-home.js[^"]*|custom-home.js?v=37|' /opt/stacks/jellyfin/config/custom-index.html
-   ```
-
-### Major Jellyfin Update Note (`custom-index.html`)
-Because `custom-index.html` overrides Jellyfin's built-in `/jellyfin/jellyfin-web/index.html` via a read-only Docker volume mount, a major Jellyfin version upgrade (e.g., `10.12` to `10.13`) may change the hashed bundle filenames inside Jellyfin's default `index.html`.
-
-If the Jellyfin web interface fails to load or shows a blank screen after a major update:
-1. Temporarily comment out the `custom-index.html` volume mount in `docker-compose.yml` and restart the container so Jellyfin exposes its fresh `index.html`:
-   ```bash
-   docker restart jellyfin
-   ```
-2. Copy the updated default `index.html` from the container into your `/config` folder:
-   ```bash
-   docker cp jellyfin:/jellyfin/jellyfin-web/index.html /opt/stacks/jellyfin/config/custom-index.html
-   ```
-3. Re-inject the `custom-home.js` script tag right before `</body>` in `/opt/stacks/jellyfin/config/custom-index.html`:
-   ```bash
-   sed -i 's|</body>|<script src="custom-home.js?v=37"></script></body>|' /opt/stacks/jellyfin/config/custom-index.html
-   ```
-4. Uncomment the `custom-index.html` volume mount in `docker-compose.yml` and restart Jellyfin:
-   ```bash
-   docker restart jellyfin
-   ```
+1. Build the plugin DLL via GitHub Actions (updates mainifest)
+2. Restart Jellyfin to pick up the update, then restart again to activate.
+3. Set **User Settings > Home > Home Sections 1–7** to **None** so that they do not populate sections above the custom rows created through the plugin.
 
 ### Starfin Roku Package (`starfin-roku`)
 1. From the root of `/workspaces/starfin-roku` (on the `custom-home` branch), validate function headers, compile BrighterScript, and package the sideloadable zip:
