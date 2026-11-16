@@ -94,7 +94,7 @@ public class CopperFoxHomeController : ControllerBase
             }
             
             var allItems = ResolveRowItems(rowDef, user, discoverLibGuid, usedGenres, skip, out var dynamicTitle, out var hasMore);
-            var isClientOnlyRow = string.Equals(rowDef.RowType, "Streaming Services", StringComparison.OrdinalIgnoreCase);
+            var isClientOnlyRow = string.Equals(rowDef.RowType, "StreamingServices", StringComparison.OrdinalIgnoreCase);
 
             if (allItems.Count == 0 && !isClientOnlyRow && skip == 0)
             {
