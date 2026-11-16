@@ -36,6 +36,29 @@ public class CopperFoxHomeController : ControllerBase
         _userDataManager = userDataManager;
     }
 
+    [HttpGet("ClientScript")]
+    [AllowAnonymous]
+    [Produces("application/javascript")]
+    public ActionResult GetClientScript()
+    {
+        var assembly = typeof(Plugin).Assembly;
+        var resourceName = assembly.GetManifestResourceNames()
+            .FirstOrDefault(n => n.EndsWith("HomePage.js", StringComparison.OrdinalIgnoreCase));
+
+        if (resourceName == null)
+        {
+            return NotFound();
+        }
+
+        using var stream = assembly.GetManifestResourceStream(resourceName);
+        if (stream == null)
+        {
+            return NotFound();
+        }
+
+        using var reader = new StreamReader(stream);
+        return Content(reader.ReadToEnd(), "application/javascript");
+    }
 
     [HttpGet("Rows")]
     [ProducesResponseType(StatusCodes.Status200OK)]

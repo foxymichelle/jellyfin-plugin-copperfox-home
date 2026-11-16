@@ -1,0 +1,750 @@
+(function () {
+  let inFlight = false;
+  let lastFetchTime = 0;
+
+  if (!document.getElementById("cfHomeStyles")) {
+    const style = document.createElement("style");
+    style.id = "cfHomeStyles";
+    style.textContent = `
+      .cf-custom-section .cardBox,
+      .itemsContainer .cardBox,
+      .cardBox { background: transparent !important; box-shadow: none !important; }
+      .cf-custom-section .cardText,
+      .itemsContainer .cardText,
+      .cardText { background: transparent !important; color: inherit !important; }
+      .itemsContainer .card:not(.episodeCard) .cardText { display: none !important; }
+      .cf-custom-section .cardScalable,
+      .itemsContainer .cardScalable,
+      .cardScalable { position: relative; transition: transform 0.18s ease, box-shadow 0.18s ease !important; border-radius: 6px !important; overflow: hidden !important; }
+      .cf-custom-section .card:hover .cardScalable,
+      .itemsContainer .card:hover .cardScalable,
+      .card:hover .cardScalable { transform: scale(1.04) !important; box-shadow: 0 6px 18px rgba(0,0,0,0.55) !important; }
+      .cardOverlayContainer { background: rgba(0,0,0,0.52) !important; border-radius: 6px !important; }
+      .cardOverlayFab-primary { background-color: rgba(255,255,255,0.8) !important; color: #000 !important; box-shadow: none !important; }
+      .cardOverlayFab-primary .material-icons { color: #000 !important; }
+      .cf-hover-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.52); opacity: 0; transition: opacity 0.18s ease; display: flex; align-items: flex-end; justify-content: space-between; padding: 10px 12px 14px 12px; pointer-events: none; z-index: 2; }
+      .cf-custom-section .card:hover .cf-hover-overlay { opacity: 1; }
+      .cf-badge-tl { position: absolute; top: 8px; left: 8px; background: rgba(0,0,0,0.8); color: #fff; font-size: 11px; padding: 3px 7px; border-radius: 4px; opacity: 0; transition: opacity 0.18s ease; pointer-events: none; z-index: 3; }
+      .cf-custom-section .card:hover .cf-badge-tl { opacity: 1; }
+      .cf-badge-tr { position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.8); color: #fff; font-size: 11px; padding: 3px 7px; border-radius: 4px; pointer-events: none; z-index: 3; }
+      .cf-progress-track { position: absolute; bottom: 0; left: 0; right: 0; height: 5px; background: rgba(255,255,255,0.5); z-index: 4; pointer-events: none; }
+      .cf-progress-fill { height: 100%; background: #a85c32; }
+      .cf-play-circle { width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.8); display: flex; align-items: center; justify-content: center; color: #000; }
+      .cf-hover-btn { pointer-events: auto; background: none; border: none; color: #fff; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; opacity: 0.9; transition: opacity 0.15s, transform 0.15s; }
+      .cf-hover-btn:hover { opacity: 1; transform: scale(1.15); }
+      .cf-hover-btn.active-played { color: #52b54b; opacity: 1; }
+      .cf-hover-btn.active-fav { color: #ff4b6e; opacity: 1; }
+      .cf-load-more-card { width: 136px; min-width: 136px; flex: 0 0 auto; align-self: stretch; margin-bottom: 4px; display: flex; align-items: center; justify-content: center; text-align: center; background: linear-gradient(135deg, #242424 0%, #0d0d0d 100%); border: 1px solid rgba(255,255,255,0.14); border-radius: 6px; cursor: pointer; color: #fff; font-size: 14px; font-weight: 700; letter-spacing: 0.5px; transition: background 0.18s, transform 0.18s; }
+      .cf-load-more-card:hover { background: linear-gradient(135deg, #323232 0%, #161616 100%); transform: scale(1.03); }
+      .cf-service-tile { width: 220px; min-width: 220px; height: 110px; flex: 0 0 auto; border-radius: 8px; display: flex; align-items: center; justify-content: center; padding: 18px 24px; box-sizing: border-box; text-decoration: none !important; color: #fff !important; font-size: 23px !important; font-weight: 700; letter-spacing: 0.5px; box-shadow: 0 4px 12px rgba(0,0,0,0.45); transition: transform 0.18s ease, box-shadow 0.18s ease; }
+      .cf-service-tile:hover, .cf-service-tile:visited, .cf-service-tile:active { color: #fff !important; text-decoration: none !important; transform: scale(1.04); box-shadow: 0 8px 20px rgba(0,0,0,0.65); }
+      .cf-service-tile img { max-width: 78%; max-height: 56%; object-fit: contain; filter: brightness(0) invert(1); }
+      .cf-scroll-row { display: flex; flex-wrap: nowrap; overflow-x: auto; padding: 8px 3.3% 16px 3.3%; gap: 14px; -webkit-overflow-scrolling: touch; scrollbar-width: none; -ms-overflow-style: none; }
+      .cf-scroll-row::-webkit-scrollbar { display: none; }
+      .cf-service-grid { display: flex !important; flex-direction: row !important; flex-wrap: wrap !important; align-items: flex-start !important; gap: 16px !important; width: 100% !important; }
+      .cf-service-grid .card { width: 182px !important; min-width: 182px !important; max-width: 182px !important; flex: 0 0 182px !important; }
+    `;
+    document.head.appendChild(style);
+  }
+  
+  function getItemHref(item) {
+    if (item.Type === "CollectionFolder" || item.Type === "UserView") {
+      const cType = (item.CollectionType || "").toLowerCase();
+      if (cType === "movies") return `#/movies.html?topParentId=${item.Id}`;
+      if (cType === "tvshows") return `#/tv.html?topParentId=${item.Id}`;
+      if (cType === "music") return `#/music.html?topParentId=${item.Id}`;
+      return `#/list.html?parentId=${item.Id}&serverId=${item.ServerId || ApiClient.serverId()}`;
+    }
+    if (item.SeriesId) {
+      return `#/details?id=${item.SeriesId}`;
+    }
+    return `#/details?id=${item.Id}`;
+  }
+  
+  function getThumbOrBackdropUrl(item, maxWidth) {
+    const imgTags = item.ImageTags || {};
+
+    if (item.Type === "CollectionFolder" || item.Type === "UserView") {
+      if (imgTags.Primary) {
+        return ApiClient.getImageUrl(item.Id, { type: "Primary", maxWidth: maxWidth, tag: imgTags.Primary });
+      }
+      if (imgTags.Thumb) {
+        return ApiClient.getImageUrl(item.Id, { type: "Thumb", maxWidth: maxWidth, tag: imgTags.Thumb });
+      }
+    }
+
+    if (item.Type === "Episode") {
+      if (item.ParentThumbItemId && item.ParentThumbImageTag) {
+        return ApiClient.getImageUrl(item.ParentThumbItemId, { type: "Thumb", maxWidth: maxWidth, tag: item.ParentThumbImageTag });
+      }
+      if (item.SeriesId) {
+        return ApiClient.getImageUrl(item.SeriesId, { type: "Thumb", maxWidth: maxWidth, fallbackType: "Backdrop" });
+      }
+    }
+
+    if (imgTags.Thumb) {
+      return ApiClient.getImageUrl(item.Id, { type: "Thumb", maxWidth: maxWidth });
+    }
+    if (Array.isArray(item.BackdropImageTags) && item.BackdropImageTags.length > 0) {
+      return ApiClient.getImageUrl(item.Id, { type: "Backdrop", maxWidth: maxWidth });
+    }
+    if (item.ParentBackdropItemId && Array.isArray(item.ParentBackdropImageTags) && item.ParentBackdropImageTags.length > 0) {
+      return ApiClient.getImageUrl(item.ParentBackdropItemId, { type: "Backdrop", maxWidth: maxWidth });
+    }
+
+    return ApiClient.getImageUrl(item.Id, { type: "Primary", maxWidth: maxWidth });
+  }
+  
+  const STREAMING_SERVICES = [
+    { name: "Netflix", tags: ["netflix"], bg: "linear-gradient(135deg,#6e1116 0%,#141414 100%)", logo: "https://wikimedia.org" },
+    { name: "Hulu", tags: ["hulu"], bg: "linear-gradient(135deg,#0f6b3e 0%,#0b1912 100%)", logo: "https://wikimedia.org" },
+    { name: "Disney+", tags: ["disney+", "disney plus", "disney"], bg: "linear-gradient(135deg,#12357a 0%,#091124 100%)", logo: "https://wikimedia.org" },
+    { name: "Max", tags: ["max", "hbo max", "hbo"], bg: "linear-gradient(135deg,#3b1d7a 0%,#120b24 100%)", logo: "https://wikimedia.org" },
+    { name: "Prime Video", tags: ["prime", "prime video", "amazon prime", "amazon"], bg: "linear-gradient(135deg,#0d4f6b 0%,#0b151c 100%)", logo: "https://wikimedia.org" },
+    { name: "Apple TV+", tags: ["apple", "apple tv", "apple tv+", "apple tv plus"], bg: "linear-gradient(135deg,#383838 0%,#121212 100%)", logo: "https://wikimedia.org" },
+    { name: "Paramount+", tags: ["paramount", "paramount+", "paramount plus"], bg: "linear-gradient(135deg,#0e3a7d 0%,#081226 100%)", logo: "https://wikimedia.org" },
+    { name: "Peacock", tags: ["peacock"], bg: "linear-gradient(135deg,#5e4810 0%,#17140a 100%)", logo: "https://wikimedia.org" }
+  ];
+
+  function renderCardHtml(item, styleMode, isContinueRow, isDiscoverRow) {
+    if (item.isServiceTile) {
+      return `<a href="#/list.html?cfService=${encodeURIComponent(item.Name)}&cfTags=${encodeURIComponent((item.tags || []).join(","))}" class="cf-service-tile" style="background:${item.bg};"><img src="${item.logo}" alt="${item.Name}" onerror="this.style.display='none';this.parentNode.textContent='${item.Name}';" /></a>`;
+    }
+
+    const isThumb = styleMode === "Thumb";
+    const cardWidth = isThumb ? "330px" : "182px";
+    const padderClass = isThumb ? "cardPadder-backdrop" : "cardPadder-portrait";
+    const imgUrl = isThumb
+      ? getThumbOrBackdropUrl(item, 600)
+      : ApiClient.getImageUrl(item.Id, { type: "Primary", maxWidth: 360 });
+
+    const href = getItemHref(item);
+    const navId = item.SeriesId || item.Id;
+    const isFolder = item.Type === "CollectionFolder" || item.Type === "UserView";
+    const isBoxSet = item.Type === "BoxSet";
+    const isSeries = item.Type === "Series" || item.Type === "Episode" || !!item.SeriesId;
+    const isPlayed = !!(item.UserData && item.UserData.Played);
+    const isFav = !!(item.UserData && item.UserData.IsFavorite);
+    const isDiscover = !!(item.IsDiscover || isDiscoverRow);
+
+    let tlText = "movie";
+    if (isBoxSet) {
+      tlText = item.ChildCount != null ? `collection | ${item.ChildCount}` : "collection";
+    } else if (isSeries) {
+      const sCount = item.SeriesChildCount != null ? item.SeriesChildCount : item.ChildCount;
+      const eCount = item.SeriesEpisodeCount != null ? item.SeriesEpisodeCount : item.RecursiveItemCount;
+      if (!isDiscover && sCount != null && eCount != null) {
+        tlText = `${sCount}S | ${eCount}E`;
+      } else {
+        tlText = "show";
+      }
+    }
+    const tlBadgeHtml = isFolder ? "" : `<div class="cf-badge-tl">${tlText}</div>`;
+
+    const trBadgeHtml = (isContinueRow && item.SeriesName && item.ParentIndexNumber != null && item.IndexNumber != null)
+      ? `<div class="cf-badge-tr">S${item.ParentIndexNumber}:E${item.IndexNumber}</div>`
+      : "";
+
+    let progressBarHtml = "";
+    if (item.UserData && item.UserData.PlaybackPositionTicks > 0 && item.RunTimeTicks > 0) {
+      const pct = Math.min(99, Math.max(2, Math.round((item.UserData.PlaybackPositionTicks / item.RunTimeTicks) * 100)));
+      progressBarHtml = `<div class="cf-progress-track"><div class="cf-progress-fill" style="width:${pct}%;"></div></div>`;
+    }
+
+    const watchedBtnHtml = isDiscover
+      ? `<span style="width:30px;"></span>`
+      : `<button type="button" class="cf-hover-btn cf-btn-played ${isPlayed ? "active-played" : ""}" data-id="${item.Id}" data-played="${isPlayed}" title="Mark Watched">
+           <span class="material-icons check" style="font-size:22px;"></span>
+         </button>`;
+
+    const playBtnHtml = isDiscover
+      ? `<span style="width:40px;"></span>`
+      : `<button type="button" class="cf-hover-btn cf-btn-play" data-id="${item.Id}" title="Play" style="background:none;border:none;">
+           <span class="cf-play-circle"><span class="material-icons play_arrow" style="font-size:26px;"></span></span>
+         </button>`;
+
+    const overlayHtml = isFolder ? "" : `
+      <div class="cf-hover-overlay">
+        ${watchedBtnHtml}
+        ${playBtnHtml}
+        <button type="button" class="cf-hover-btn cf-btn-fav ${isFav ? "active-fav" : ""}" data-id="${item.Id}" data-fav="${isFav}" title="Favorite">
+          <span class="material-icons favorite" style="font-size:22px;"></span>
+        </button>
+      </div>`;
+
+    return `
+      <div class="card ${isThumb ? "backdropCard" : "portraitCard"} card-hoverable card-withuserdata cf-item-card" data-id="${navId}" data-item-id="${item.Id}" style="width:${cardWidth};min-width:${cardWidth};flex:0 0 auto;">
+        <div class="cardBox visualCardBox">
+          <div class="cardScalable">
+            <div class="cardPadder ${padderClass}"></div>
+            <a href="${href}" class="cardImageContainer coveredImage cardContent itemAction" style="background-image:url('${imgUrl}');"></a>
+            ${tlBadgeHtml}
+            ${trBadgeHtml}
+            ${progressBarHtml}
+            ${overlayHtml}
+          </div>
+        </div>
+      </div>`;
+  }
+
+  function renderLoadMoreCard(row) {
+    if (!row.hasMore) return "";
+    return `
+      <div class="cf-load-more-card" data-row-index="${row.rowIndex}" data-row-key="${row.key}" data-row-type="${row.rowType}" data-scope="${row.scope || ""}">
+        <span>MORE</span>
+      </div>`;
+  }
+
+  function bindCardInteractions(scopeEl) {
+  	scopeEl.querySelectorAll(".cf-btn-play").forEach(btn => {
+      if (btn.dataset.bound) return;
+      btn.dataset.bound = "1";
+      btn.onclick = function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const id = btn.getAttribute("data-id");
+        if (window.Emby && Emby.importModule) {
+          Emby.importModule("./components/playback/playbackmanager").then(pm => {
+            const playbackManager = pm.default || pm;
+            playbackManager.play({ ids: [id], serverId: ApiClient.serverId() });
+          }).catch(() => {
+            window.location.hash = `#/details?id=${id}`;
+          });
+        } else {
+          window.location.hash = `#/details?id=${id}`;
+        }
+      };
+    });
+    scopeEl.querySelectorAll(".cf-btn-played").forEach(btn => {
+      if (btn.dataset.bound) return;
+      btn.dataset.bound = "1";
+      btn.onclick = async function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const id = btn.getAttribute("data-id");
+        const nextState = btn.getAttribute("data-played") !== "true";
+        const uid = ApiClient.getCurrentUserId();
+        try {
+          await ApiClient.ajax({
+            type: nextState ? "POST" : "DELETE",
+            url: ApiClient.getUrl(`Users/${uid}/PlayedItems/${id}`)
+          });
+          btn.setAttribute("data-played", String(nextState));
+          btn.classList.toggle("active-played", nextState);
+        } catch (err) {
+          console.error("Toggle watched failed:", err);
+        }
+      };
+    });
+
+    scopeEl.querySelectorAll(".cf-btn-fav").forEach(btn => {
+      if (btn.dataset.bound) return;
+      btn.dataset.bound = "1";
+      btn.onclick = async function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const id = btn.getAttribute("data-id");
+        const nextState = btn.getAttribute("data-fav") !== "true";
+        const uid = ApiClient.getCurrentUserId();
+        try {
+          await ApiClient.ajax({
+            type: nextState ? "POST" : "DELETE",
+            url: ApiClient.getUrl(`Users/${uid}/FavoriteItems/${id}`)
+          });
+          btn.setAttribute("data-fav", String(nextState));
+          btn.classList.toggle("active-fav", nextState);
+        } catch (err) {
+          console.error("Toggle favorite failed:", err);
+        }
+      };
+    });
+
+    scopeEl.querySelectorAll(".cf-item-card").forEach(card => {
+      if (card.dataset.ctxBound) return;
+      card.dataset.ctxBound = "1";
+
+      const openContextMenu = async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const itemId = card.getAttribute("data-item-id");
+        const uid = ApiClient.getCurrentUserId();
+        const item = await ApiClient.getItem(uid, itemId);
+        const isFav = !!(item.UserData && item.UserData.IsFavorite);
+        const isPlayed = !!(item.UserData && item.UserData.Played);
+
+        const existing = document.getElementById("cfQuickMenu");
+        if (existing) existing.remove();
+
+        const menu = document.createElement("div");
+        menu.id = "cfQuickMenu";
+        menu.style.cssText = `position:fixed;top:${Math.min(e.clientY, window.innerHeight - 280)}px;left:${Math.min(e.clientX, window.innerWidth - 210)}px;background:#202020;border:1px solid #444;border-radius:6px;padding:6px 0;z-index:99999;min-width:190px;box-shadow:0 8px 24px rgba(0,0,0,0.8);`;
+
+        const options = [
+          { name: "Open Details", id: "details" },
+          { name: isPlayed ? "Mark Unwatched" : "Mark Watched", id: "played" },
+          { name: isFav ? "Remove Favorite" : "Add Favorite", id: "fav" },
+          { name: "Add to Collection", id: "collection" },
+          { name: "Add to Playlist", id: "playlist" },
+          { name: "Edit Metadata", id: "edit" },
+          { name: "Edit Images", id: "images" },
+          { name: "Refresh Metadata", id: "refresh" }
+        ];
+
+        options.forEach(opt => {
+          const row = document.createElement("div");
+          row.textContent = opt.name;
+          row.style.cssText = "padding:9px 14px;color:#fff;font-size:14px;cursor:pointer;";
+          row.onmouseenter = () => row.style.background = "#333";
+          row.onmouseleave = () => row.style.background = "transparent";
+          row.onclick = async () => {
+            menu.remove();
+            if (opt.id === "details") window.location.hash = `#/details?id=${itemId}`;
+            if (opt.id === "played") await ApiClient.ajax({ type: !isPlayed ? "POST" : "DELETE", url: ApiClient.getUrl(`Users/${uid}/PlayedItems/${itemId}`) });
+            if (opt.id === "fav") await ApiClient.ajax({ type: !isFav ? "POST" : "DELETE", url: ApiClient.getUrl(`Users/${uid}/FavoriteItems/${itemId}`) });
+            if (opt.id === "collection" && window.Emby && Emby.importModule) {
+              Emby.importModule("./components/collectionEditor/collectionEditor").then(m => new m().show({ items: [itemId], serverId: ApiClient.serverId() }));
+            }
+            if (opt.id === "playlist" && window.Emby && Emby.importModule) {
+              Emby.importModule("./components/playlisteditor/playlisteditor").then(m => new m().show({ items: [itemId], serverId: ApiClient.serverId() }));
+            }
+            if (opt.id === "edit" && window.Emby && Emby.importModule) {
+              Emby.importModule("./components/metadataEditor/metadataEditor").then(m => m.show(itemId, ApiClient.serverId()));
+            }
+            if (opt.id === "images" && window.Emby && Emby.importModule) {
+              Emby.importModule("./components/imageeditor/imageeditor").then(m => m.show({ itemId: itemId, serverId: ApiClient.serverId() }));
+            }
+            if (opt.id === "refresh") {
+              await ApiClient.ajax({ type: "POST", url: ApiClient.getUrl(`Items/${itemId}/Refresh`, { Recursive: true, ImageRefreshMode: "Default", MetadataRefreshMode: "Default" }) });
+            }
+          };
+          menu.appendChild(row);
+        });
+
+        document.body.appendChild(menu);
+        setTimeout(() => document.addEventListener("click", () => menu.remove(), { once: true }), 10);
+      };
+
+      card.addEventListener("contextmenu", openContextMenu);
+      card.addEventListener("dblclick", openContextMenu);
+    });
+  }
+
+  function paintRows(container, rows) {
+    if (!container || !rows || !rows.length) return;
+
+    const existingCustom = Array.from(container.querySelectorAll(".cf-custom-section"));
+    const activeKeys = new Set(rows.filter(r => r.items && r.items.length).map(r => r.key));
+    existingCustom.forEach(el => {
+      if (!activeKeys.has(el.id)) el.remove();
+    });
+
+    for (const row of rows) {
+      if (!row.items || !row.items.length) continue;
+
+      const styleMode = row.imageStyle || ((row.rowType === "MyMedia" || row.rowType === "ContinueAndUpNext" || row.rowType === "LatestMovies" || row.rowType === "LatestShows" || row.rowType === "StreamingServices") ? "Thumb" : "Poster");
+      const isContinueRow = row.rowType === "ContinueAndUpNext";
+      const isDiscoverRow = row.scope === "DiscoverOnly";
+      const cardsHtml = row.items.map(item => renderCardHtml(item, styleMode, isContinueRow, isDiscoverRow)).join("") + renderLoadMoreCard(row);
+      const displayTitle = (row.title || "").replace(/:$/, "");
+
+      let section = document.getElementById(row.key);
+      if (!section) {
+        section = document.createElement("div");
+        section.id = row.key;
+        section.className = "cf-custom-section";
+        section.style.cssText = "display:block;width:100%;margin-bottom:1.5em;";
+      }
+
+      section.innerHTML = `
+        <div class="sectionTitleContainer sectionTitleContainer-cards padded-left">
+          <h2 class="sectionTitle sectionTitle-cards cf-section-title">${displayTitle}</h2>
+        </div>
+        <div class="cf-scroll-row">
+          ${cardsHtml}
+        </div>`;
+
+      container.appendChild(section);
+    }
+
+    bindCardInteractions(container);
+
+    container.querySelectorAll(".cf-load-more-card").forEach(btn => {
+      btn.onclick = async function () {
+        const rowIndex = parseInt(btn.getAttribute("data-row-index"), 10);
+        const rowType = btn.getAttribute("data-row-type");
+        const scope = btn.getAttribute("data-scope");
+        const scrollRow = btn.parentElement;
+        const currentCount = scrollRow.querySelectorAll(".cf-item-card").length;
+        btn.style.opacity = "0.5";
+        btn.style.pointerEvents = "none";
+        try {
+          const uid = ApiClient.getCurrentUserId();
+          if (rowType === "LatestMovies" || rowType === "LatestShows") {
+            const cfgData = await ApiClient.fetch({ url: ApiClient.getUrl("CopperFoxHome/Rows", { userId: uid }), type: "GET", dataType: "json" });
+            const discoverLibId = (cfgData && cfgData.discoverLibraryId) || "";
+            const itemType = rowType === "LatestMovies" ? "Movie" : "Series";
+            const res = await ApiClient.getItems(uid, {
+              ParentId: discoverLibId,
+              IncludeItemTypes: itemType,
+              Recursive: true,
+              SortBy: "DateCreated,SortName",
+              SortOrder: "Descending",
+              StartIndex: currentCount,
+              Limit: 14,
+              Fields: "PrimaryImageAspectRatio,BackdropImageTags,UserData,ChildCount,RecursiveItemCount,RunTimeTicks",
+              ImageTypeLimit: 1,
+              EnableImageTypes: "Primary,Backdrop,Thumb"
+            });
+            const newItems = (res && res.Items) || [];
+            const total = (res && res.TotalRecordCount) || 0;
+            const styleMode = btn.closest(".cf-custom-section").querySelector(".backdropCard") ? "Thumb" : "Poster";
+            const newHtml = newItems.map(item => renderCardHtml(item, styleMode, false, scope === "DiscoverOnly")).join("");
+            btn.insertAdjacentHTML("beforebegin", newHtml);
+            bindCardInteractions(scrollRow);
+            if (currentCount + newItems.length >= total || newItems.length === 0) {
+              btn.remove();
+            } else {
+              btn.style.opacity = "1";
+              btn.style.pointerEvents = "auto";
+            }
+            return;
+          }
+
+          const data = await ApiClient.fetch({
+            url: ApiClient.getUrl("CopperFoxHome/Rows", { userId: uid, rowIndex: rowIndex, skip: currentCount }),
+            type: "GET",
+            dataType: "json"
+          });
+          const updatedRow = data && Array.isArray(data.rows) && data.rows[0];
+          if (updatedRow && updatedRow.items && updatedRow.items.length) {
+            const styleMode = updatedRow.imageStyle || "Poster";
+            const isDiscoverRow = updatedRow.scope === "DiscoverOnly";
+            const newHtml = updatedRow.items.map(item => renderCardHtml(item, styleMode, false, isDiscoverRow)).join("");
+            btn.insertAdjacentHTML("beforebegin", newHtml);
+            bindCardInteractions(scrollRow);
+            if (!updatedRow.hasMore) {
+              btn.remove();
+            } else {
+              btn.style.opacity = "1";
+              btn.style.pointerEvents = "auto";
+            }
+          } else {
+            btn.remove();
+          }
+        } catch (err) {
+          console.error("Load more error:", err);
+          btn.remove();
+        }
+      };
+    });
+  }
+
+  async function resolveClientRows(userId, payload) {
+    const rows = payload.rows || [];
+    const myMediaOrder = payload.myMediaOrder || [];
+    const excludedMyMediaIds = new Set(payload.excludedMyMediaIds || []);
+    const discoverLibId = payload.discoverLibraryId || "";
+
+    await Promise.all(rows.map(async (row) => {
+      if (row.rowType === "StreamingServices") {
+        row.items = STREAMING_SERVICES.map(s => ({ isServiceTile: true, Name: s.name, tags: s.tags, bg: s.bg, logo: s.logo }));
+        if (!row.title) row.title = "Streaming Services";
+      } else if (row.rowType === "Collection" && row.targetValue && (!row.items || !row.items.length)) {
+        const res = await ApiClient.getItems(userId, { ParentId: row.targetValue, Fields: "UserData,ChildCount,RecursiveItemCount,RunTimeTicks,BackdropImageTags", EnableImageTypes: "Primary,Backdrop,Thumb" });
+        row.items = (res && res.Items) || [];
+        if (!row.title) row.title = "Collection";
+      } else if (row.rowType === "MyMedia") {
+        const viewsRes = await ApiClient.getUserViews(userId);
+        const allViews = (viewsRes && viewsRes.Items) || [];
+        const visible = allViews.filter(v => !excludedMyMediaIds.has(v.Id));
+        const ordered = [];
+        myMediaOrder.forEach(id => {
+          const found = visible.find(v => v.Id === id);
+          if (found) ordered.push(found);
+        });
+        visible.forEach(v => {
+          if (!ordered.some(o => o.Id === v.Id)) ordered.push(v);
+        });
+        row.items = ordered;
+        if (!row.title) row.title = "My Media";
+      } else if (row.rowType === "ContinueAndUpNext") {
+        const [resumeRes, nextUpRes] = await Promise.all([
+          ApiClient.getResumableItems(userId, { Limit: 25, Fields: "PrimaryImageAspectRatio,ParentThumbItemId,ParentThumbImageTag,UserData,RunTimeTicks,BackdropImageTags", ImageTypeLimit: 1, EnableImageTypes: "Primary,Backdrop,Thumb" }).catch(() => ({ Items: [] })),
+          ApiClient.getNextUpEpisodes({ UserId: userId, Limit: 25, Fields: "PrimaryImageAspectRatio,ParentThumbItemId,ParentThumbImageTag,UserData,RunTimeTicks,BackdropImageTags", ImageTypeLimit: 1, EnableImageTypes: "Primary,Backdrop,Thumb" }).catch(() => ({ Items: [] }))
+        ]);
+
+        const resumeItems = (resumeRes && resumeRes.Items) || [];
+        const nextUpItems = (nextUpRes && nextUpRes.Items) || [];
+        const latestBySeries = new Map();
+        const allCandidates = [...resumeItems, ...nextUpItems].filter(item => item.Type !== "Series");
+
+        for (const item of allCandidates) {
+          if (item.SeriesId) {
+            const existing = latestBySeries.get(item.SeriesId);
+            if (!existing) {
+              latestBySeries.set(item.SeriesId, item);
+            } else {
+              const curScore = ((item.ParentIndexNumber || 0) * 10000) + (item.IndexNumber || 0);
+              const exScore = ((existing.ParentIndexNumber || 0) * 10000) + (existing.IndexNumber || 0);
+              if (curScore > exScore) latestBySeries.set(item.SeriesId, item);
+            }
+          }
+        }
+
+        const combined = [];
+        const seen = new Set();
+        for (const item of allCandidates) {
+          const chosen = item.SeriesId ? latestBySeries.get(item.SeriesId) : item;
+          if (chosen && !seen.has(chosen.Id)) {
+            seen.add(chosen.Id);
+            combined.push(chosen);
+          }
+        }
+
+        const seriesIds = Array.from(latestBySeries.keys());
+        if (seriesIds.length > 0) {
+          const seriesRes = await ApiClient.getItems(userId, { Ids: seriesIds.join(","), Fields: "ChildCount,RecursiveItemCount" }).catch(() => null);
+          const sMap = new Map(((seriesRes && seriesRes.Items) || []).map(s => [s.Id, s]));
+          combined.forEach(item => {
+            if (item.SeriesId && sMap.has(item.SeriesId)) {
+              const sObj = sMap.get(item.SeriesId);
+              item.SeriesChildCount = sObj.ChildCount;
+              item.SeriesEpisodeCount = sObj.RecursiveItemCount;
+            }
+          });
+        }
+
+        row.items = combined;
+        if (!row.title) row.title = "Continue Watching";
+      } else if (row.rowType === "LatestMovies") {
+        const isDiscover = row.scope === "DiscoverOnly";
+        if (isDiscover && discoverLibId) {
+          const res = await ApiClient.getItems(userId, {
+            ParentId: discoverLibId,
+            IncludeItemTypes: "Movie",
+            Recursive: true,
+            SortBy: "DateCreated,SortName",
+            SortOrder: "Descending",
+            Limit: 14,
+            Fields: "PrimaryImageAspectRatio,BackdropImageTags,UserData,RunTimeTicks",
+            ImageTypeLimit: 1,
+            EnableImageTypes: "Primary,Backdrop,Thumb"
+          }).catch(() => null);
+          row.items = (res && res.Items) || [];
+          row.hasMore = ((res && res.TotalRecordCount) || 0) > row.items.length;
+        } else {
+          const viewsRes = await ApiClient.getUserViews(userId);
+          const allViews = (viewsRes && viewsRes.Items) || [];
+          const movieViews = allViews.filter(v => (!discoverLibId || v.Id !== discoverLibId) && (v.CollectionType || "").toLowerCase() === "movies");
+          const fetched = await Promise.all(movieViews.map(v => ApiClient.getLatestItems({
+            UserId: userId,
+            ParentId: v.Id,
+            IncludeItemTypes: "Movie",
+            Limit: 14,
+            Fields: "PrimaryImageAspectRatio,BackdropImageTags,UserData,RunTimeTicks",
+            ImageTypeLimit: 1,
+            EnableImageTypes: "Primary,Backdrop,Thumb"
+          })));
+          row.items = fetched.flat().sort((a, b) => new Date(b.DateCreated || 0) - new Date(a.DateCreated || 0)).slice(0, 12);
+        }
+        if (!row.title) row.title = row.scope === "DiscoverOnly" ? "DISCOVER Latest Movies" : "Latest Movies";
+      } else if (row.rowType === "LatestShows") {
+        const isDiscover = row.scope === "DiscoverOnly";
+        if (isDiscover && discoverLibId) {
+          const res = await ApiClient.getItems(userId, {
+            ParentId: discoverLibId,
+            IncludeItemTypes: "Series",
+            Recursive: true,
+            SortBy: "DateCreated,SortName",
+            SortOrder: "Descending",
+            Limit: 14,
+            Fields: "PrimaryImageAspectRatio,BackdropImageTags,UserData,ChildCount,RecursiveItemCount",
+            ImageTypeLimit: 1,
+            EnableImageTypes: "Primary,Backdrop,Thumb"
+          }).catch(() => null);
+          row.items = (res && res.Items) || [];
+          row.hasMore = ((res && res.TotalRecordCount) || 0) > row.items.length;
+        } else {
+          const viewsRes = await ApiClient.getUserViews(userId);
+          const allViews = (viewsRes && viewsRes.Items) || [];
+          const showViews = allViews.filter(v => (!discoverLibId || v.Id !== discoverLibId) && (v.CollectionType || "").toLowerCase() === "tvshows");
+          const fetched = await Promise.all(showViews.map(v => ApiClient.getLatestItems({
+            UserId: userId,
+            ParentId: v.Id,
+            IncludeItemTypes: "Series",
+            GroupItems: true,
+            Limit: 14,
+            Fields: "PrimaryImageAspectRatio,BackdropImageTags,UserData,ChildCount,RecursiveItemCount",
+            ImageTypeLimit: 1,
+            EnableImageTypes: "Primary,Backdrop,Thumb"
+          })));
+          row.items = fetched.flat().sort((a, b) => new Date(b.DateCreated || 0) - new Date(a.DateCreated || 0)).slice(0, 12);
+        }
+        if (!row.title) row.title = row.scope === "DiscoverOnly" ? "DISCOVER Latest Shows" : "Latest Shows";
+      }
+    }));
+
+    return rows;
+  }
+
+  async function renderServiceSubPage() {
+    const hash = window.location.hash || "";
+    if (!hash.includes("cfService=")) return false;
+
+    const queryString = hash.includes("?") ? hash.split("?")[1] : "";
+    const params = new URLSearchParams(queryString);
+    const serviceName = params.get("cfService") || "Streaming";
+    const serviceTags = (params.get("cfTags") || serviceName.toLowerCase())
+      .split(",")
+      .map(t => t.trim().toLowerCase())
+      .filter(Boolean);
+
+    const activePage = document.querySelector(".page:not(.hide)") || document.body;
+    const pageContainer = activePage.querySelector(".content-primary, .itemsContainer") || activePage;
+
+    pageContainer.innerHTML = `<div style="padding:40px;text-align:center;opacity:0.75;font-size:16px;">Loading ${serviceName}...</div>`;
+
+    try {
+      const uid = ApiClient.getCurrentUserId();
+      const cfgData = await ApiClient.fetch({
+        url: ApiClient.getUrl("CopperFoxHome/Rows", { userId: uid }),
+        type: "GET",
+        dataType: "json"
+      });
+      const discoverLibId = (cfgData && cfgData.discoverLibraryId) || "";
+
+      const queryOpts = {
+        Recursive: true,
+        IncludeItemTypes: "Movie,Series",
+        SortBy: "SortName",
+        SortOrder: "Ascending",
+        Fields: "PrimaryImageAspectRatio,BackdropImageTags,UserData,ChildCount,RecursiveItemCount,RunTimeTicks,Tags",
+        EnableImageTypes: "Primary,Backdrop,Thumb",
+        Limit: 1000
+      };
+      if (discoverLibId) {
+        queryOpts.ParentId = discoverLibId;
+      }
+
+      const allRes = await ApiClient.getItems(uid, queryOpts);
+      const allItems = (allRes && allRes.Items) || [];
+      const discoverItems = allItems.filter(item =>
+        Array.isArray(item.Tags) && item.Tags.some(t =>
+          serviceTags.some(st => t.toLowerCase().includes(st))
+        )
+      );
+
+      const cardsHtml = discoverItems.length
+        ? discoverItems.map(item => renderCardHtml(item, "Poster", false, true)).join("")
+        : `<div style="padding:24px 0;opacity:0.75;font-size:15px;">No items found in Discover for ${serviceName}.</div>`;
+
+      pageContainer.innerHTML = `
+        <div id="cfServiceSubPage" class="cf-custom-section" style="padding:20px 3.3%;">
+          <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;">
+            <button type="button" id="cfSvcBackBtn" style="background:rgba(255,255,255,0.12);border:none;color:#fff;border-radius:6px;padding:7px 14px;cursor:pointer;font-size:14px;">← Back</button>
+            <h2 class="sectionTitle sectionTitle-cards cf-section-title" style="margin:0;">DISCOVER on ${serviceName}</h2>
+          </div>
+          <div class="cf-service-grid">
+            ${cardsHtml}
+          </div>
+        </div>`;
+
+      const backBtn = document.getElementById("cfSvcBackBtn");
+      if (backBtn) {
+        backBtn.onclick = () => window.history.back();
+      }
+      bindCardInteractions(pageContainer);
+    } finally {
+      if (window.Dashboard && Dashboard.hideLoadingMsg) Dashboard.hideLoadingMsg();
+      document.querySelectorAll(".docspinner").forEach(el => el.remove());
+    }
+    return true;
+  }
+
+  async function loadOnce() {
+    if (!window.ApiClient || inFlight) return;
+    if (await renderServiceSubPage()) return;
+
+    const container = document.querySelector(".homeSectionsContainer");
+    if (!container) return;
+
+    const now = Date.now();
+    if (now - lastFetchTime < 4000) return;
+
+    const userId = ApiClient.getCurrentUserId();
+    if (!userId) return;
+
+    inFlight = true;
+    lastFetchTime = now;
+    try {
+      const data = await ApiClient.fetch({
+        url: ApiClient.getUrl("CopperFoxHome/Rows", { userId: userId }),
+        type: "GET",
+        dataType: "json"
+      });
+      const allRows = (data && data.rows) || [];
+      const firstBatch = allRows.slice(0, 3);
+      const restBatch = allRows.slice(3);
+
+      const resolvedFirst = await resolveClientRows(userId, { ...data, rows: firstBatch });
+      paintRows(container, resolvedFirst);
+
+      if (restBatch.length > 0) {
+        const resolvedRest = await resolveClientRows(userId, { ...data, rows: restBatch });
+        paintRows(container, [...resolvedFirst, ...resolvedRest]);
+      }
+    } catch (e) {
+      console.error("CopperFox Home rows error:", e);
+    } finally {
+      inFlight = false;
+    }
+  }
+
+  function injectUserMenuLink() {
+    if (document.getElementById("cfHomeUserMenuLink")) return;
+
+    const popovers = document.querySelectorAll('.MuiPopover-root, .MuiMenu-root, .dialogContainer');
+    for (const pop of popovers) {
+      const items = Array.from(pop.querySelectorAll('li, a, button, [role="menuitem"]'));
+      const settingsItem = items.find(el => el.textContent && el.textContent.trim() === "Settings");
+      if (!settingsItem) continue;
+
+      const clone = settingsItem.cloneNode(true);
+      clone.id = "cfHomeUserMenuLink";
+
+      const textNode = Array.from(clone.querySelectorAll("*")).find(
+        el => el.children.length === 0 && el.textContent.trim() === "Settings"
+      );
+      if (textNode) textNode.textContent = "CopperFox Home";
+
+      clone.addEventListener("click", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const backdrop = pop.querySelector(".MuiBackdrop-root");
+        if (backdrop) backdrop.click();
+        window.location.hash = "#/configurationpage?name=CopperFox%20Home";
+      });
+
+      settingsItem.parentNode.insertBefore(clone, settingsItem.nextSibling);
+      break;
+    }
+  }
+
+  const menuObserver = new MutationObserver(function (mutations) {
+    for (const m of mutations) {
+      if (m.addedNodes.length > 0) {
+        injectUserMenuLink();
+        break;
+      }
+    }
+  });
+  menuObserver.observe(document.body, { childList: true });
+
+  document.addEventListener("viewshow", () => setTimeout(loadOnce, 350));
+  window.addEventListener("hashchange", () => setTimeout(loadOnce, 350));
+  setInterval(() => {
+    const s = document.getElementById("cfHomeStyles");
+    if (s && document.head.lastElementChild !== s) document.head.appendChild(s);
+  }, 1500);
+  setTimeout(loadOnce, 1000);
+})();
