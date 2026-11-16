@@ -88,6 +88,7 @@ public class CopperFoxHomeController : ControllerBase
                     ? series.GetEpisodes(user, new DtoOptions(false), false).Count()
                     : null;
                 var backdropCount = item.GetImages(MediaBrowser.Model.Entities.ImageType.Backdrop).Count();
+                var hasPrimary = item.HasImage(MediaBrowser.Model.Entities.ImageType.Primary);
                 var hasThumb = item.HasImage(MediaBrowser.Model.Entities.ImageType.Thumb);
                 var userData = _userDataManager.GetUserData(user, item);
 
@@ -96,6 +97,7 @@ public class CopperFoxHomeController : ControllerBase
                 int? seasonNum = null;
                 int? episodeNum = null;
                 string? parentThumbId = null;
+                string? parentThumbTag = null;
 
                 if (item is MediaBrowser.Controller.Entities.TV.Episode ep)
                 {
@@ -114,9 +116,14 @@ public class CopperFoxHomeController : ControllerBase
                         if (ep.Series.HasImage(MediaBrowser.Model.Entities.ImageType.Thumb))
                         {
                             parentThumbId = ep.SeriesId.ToString("N");
+                            parentThumbTag = "1";
                         }
                     }
                 }
+
+                var imageTags = new Dictionary<string, string>();
+                if (hasPrimary) imageTags["Primary"] = "1";
+                if (hasThumb) imageTags["Thumb"] = "1";
 
                 return new
                 {
@@ -129,11 +136,12 @@ public class CopperFoxHomeController : ControllerBase
                     ParentIndexNumber = seasonNum,
                     IndexNumber = episodeNum,
                     ParentThumbItemId = parentThumbId,
+                    ParentThumbImageTag = parentThumbTag,
                     Overview = item.Overview,
                     Genres = item.Genres ?? Array.Empty<string>(),
                     PrimaryImageAspectRatio = 0.6666667,
                     RunTimeTicks = item.RunTimeTicks,
-                    ImageTags = hasThumb ? new { Thumb = "1" } : null,
+                    ImageTags = imageTags,
                     BackdropImageTags = Enumerable.Range(0, backdropCount).Select(idx => idx.ToString()).ToArray(),
                     UserData = new
                     {
