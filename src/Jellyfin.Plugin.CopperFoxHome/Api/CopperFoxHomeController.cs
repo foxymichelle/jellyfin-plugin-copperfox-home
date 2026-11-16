@@ -378,23 +378,32 @@ public class CopperFoxHomeController : ControllerBase
             if (skip > 0) return new List<BaseItem>();
             var isDiscover = string.Equals(rowDef.Scope, "DiscoverOnly", StringComparison.OrdinalIgnoreCase);
             dynamicTitle = string.IsNullOrWhiteSpace(rowDef.Title)
-                ? (isDiscover ? "Discover More" : "")
+                ? (isDiscover ? "DISCOVER Featured" : "Featured")
                 : rowDef.Title;
+
+            var includeTags = (rowDef.TargetValue ?? string.Empty)
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var excludeTags = (rowDef.ExcludeTags ?? string.Empty)
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
             var query = new InternalItemsQuery(user)
             {
                 Recursive = true,
                 IncludeItemTypes = new[] { BaseItemKind.Movie, BaseItemKind.Series },
-                Limit = 300
+                Limit = 500
             };
+
             var pool = ApplyScopeFilter(_libraryManager.GetItemList(query), rowDef.Scope, discoverLibGuid)
                 .Where(x => x.GetImages(MediaBrowser.Model.Entities.ImageType.Backdrop).Any() || x.HasImage(MediaBrowser.Model.Entities.ImageType.Thumb))
+                .Where(x => includeTags.Count == 0 || (x.Tags ?? Array.Empty<string>()).Any(t => includeTags.Contains(t)))
+                .Where(x => excludeTags.Count == 0 || !(x.Tags ?? Array.Empty<string>()).Any(t => excludeTags.Contains(t)))
                 .ToList();
 
-            var seed = (rowDef.Title ?? "Slider").GetHashCode() ^ DateTime.UtcNow.DayOfYear;
-            var rng = new Random(seed);
             hasMore = false;
-            return pool.OrderBy(_ => rng.Next()).Take(10).ToList();
+            return pool.OrderBy(_ => Random.Shared.Next()).Take(10).ToList();
         }
 
         if (string.Equals(rowDef.RowType, "Genre", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(rowDef.TargetValue))
