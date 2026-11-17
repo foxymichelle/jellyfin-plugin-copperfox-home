@@ -368,7 +368,7 @@
       if (!row.items || !row.items.length) continue;
 
       if (row.rowType === "SliderRow") {
-        const sliderTitle = escapeHtml(row.title || "Featured");
+        const sliderTitle = (row.title || "Featured").replace(/:$/, "");
         const isDiscoverSlider = (row.scope === "DiscoverOnly") || (row.title || "").toLowerCase().startsWith("discover");
         if (isDiscoverSlider && !container.querySelector(".cf-discover-divider")) {
           const hr = document.createElement("hr");
@@ -376,10 +376,30 @@
           container.appendChild(hr);
         }
 
-        let section = container.querySelector(`[data-cf-key="${row.key}"]`);
+        const slidesHtml = row.items.map((item, idx) => {
+          const imgUrl = item.BackdropImageTags && item.BackdropImageTags.length > 0
+            ? ApiClient.getUrl(`Items/${item.Id}/Images/Backdrop/0`, { maxWidth: 1920, quality: 90 })
+            : ApiClient.getUrl(`Items/${item.Id}/Images/Thumb`, { maxWidth: 1920, quality: 90 });
+          const year = item.ProductionYear ? ` (${item.ProductionYear})` : "";
+          const overview = (item.Overview || "").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+          return `
+            <div class="cf-slider-slide${idx === 0 ? " active" : ""}" data-idx="${idx}" data-href="#/details?id=${item.Id}" style="background-image:url('${imgUrl}');">
+              <div class="cf-slider-scrim"></div>
+              <div class="cf-slider-meta">
+                <div class="cf-slider-title">${(item.Name || "").replace(/</g, "&lt;")}${year}</div>
+                <div class="cf-slider-overview">${overview}</div>
+              </div>
+            </div>`;
+        }).join("");
+
+        const dotsHtml = row.items.map((_, idx) =>
+          `<span class="cf-slider-dot${idx === 0 ? " active" : ""}" data-idx="${idx}"></span>`
+        ).join("");
+
+        let section = document.getElementById(row.key);
         if (!section) {
           section = document.createElement("div");
-          section.setAttribute("data-cf-key", row.key);
+          section.id = row.key;
           section.className = "cf-custom-section";
           section.style.cssText = "display:block;width:100%;";
           container.appendChild(section);
@@ -403,14 +423,6 @@
           wrap.querySelectorAll(".cf-slider-dot").forEach(el => el.classList.toggle("active", parseInt(el.getAttribute("data-idx"), 10) === target));
         };
 
-        wrap.querySelector(".cf-slider-prev").onclick = (e) => {
-          e.stopPropagation();
-          goSlide(parseInt(wrap.getAttribute("data-active"), 10) - 1);
-        };
-        wrap.querySelector(".cf-slider-next").onclick = (e) => {
-          e.stopPropagation();
-          goSlide(parseInt(wrap.getAttribute("data-active"), 10) + 1);
-        };
         wrap.onclick = () => {
           const activeSlide = wrap.querySelector(".cf-slider-slide.active");
           if (activeSlide) window.location.hash = activeSlide.getAttribute("data-href");
