@@ -62,9 +62,19 @@ public class CopperFoxHomeController : ControllerBase
     }
     [HttpPost("ClearSliderCache")]
     [AllowAnonymous]
-    public ActionResult ClearSliderCache()
+    public ActionResult ClearSliderCache([FromQuery] string? scope = null)
     {
-        _sliderCache.Clear();
+        if (string.IsNullOrWhiteSpace(scope))
+        {
+            _sliderCache.Clear();
+        }
+        else
+        {
+            foreach (var key in _sliderCache.Keys.Where(k => k.Contains($"|{scope}|", StringComparison.OrdinalIgnoreCase)).ToList())
+            {
+                _sliderCache.TryRemove(key, out _);
+            }
+        }
         return Ok(new { cleared = true });
     }
 
@@ -108,6 +118,20 @@ public class CopperFoxHomeController : ControllerBase
         foreach (var r in nonSliderRows.Where(r => !string.Equals(r.Scope, "DiscoverOnly", StringComparison.OrdinalIgnoreCase)))
         {
             unifiedRows.Add((2, r));
+        }
+
+        var discHero = config.DiscoverSlider ?? new HeroSliderConfig();
+        if (discHero.Enabled)
+        {
+            unifiedRows.Add((3, new CustomHomeRowDefinition
+            {
+                Title = !string.IsNullOrWhiteSpace(discHero.Title) ? discHero.Title : "DISCOVER Featured",
+                RowType = "SliderRow",
+                Scope = "DiscoverOnly",
+                TargetValue = discHero.IncludeTags ?? string.Empty,
+                ExcludeTags = discHero.ExcludeTags ?? string.Empty,
+                ImageStyle = "Thumb"
+            }));
         }
 
         foreach (var r in nonSliderRows.Where(r => string.Equals(r.Scope, "DiscoverOnly", StringComparison.OrdinalIgnoreCase)))
@@ -427,7 +451,11 @@ public class CopperFoxHomeController : ControllerBase
         if (string.Equals(rowDef.RowType, "SliderRow", StringComparison.OrdinalIgnoreCase))
         {
             if (skip > 0) return new List<BaseItem>();
-            dynamicTitle = string.IsNullOrWhiteSpace(rowDef.Title) ? "Featured" : rowDef.Title;
+            var isDiscover = string.Equals(rowDef.Scope, "DiscoverOnly", StringComparison.OrdinalIgnoreCase);
+            var maxSliderItems = isDiscover ? 16 : 10;
+            dynamicTitle = string.IsNullOrWhiteSpace(rowDef.Title)
+                ? (isDiscover ? "DISCOVER Featured" : "Featured")
+                : rowDef.Title;
 
             var cacheKey = $"{user.Id:N}|{rowDef.Scope}|{rowDef.TargetValue}|{rowDef.ExcludeTags}";
             if (_sliderCache.TryGetValue(cacheKey, out var cached) && cached.ExpiresAt > DateTime.UtcNow && cached.ItemIds.Count > 0)
@@ -435,6 +463,7 @@ public class CopperFoxHomeController : ControllerBase
                 var hydrated = cached.ItemIds
                     .Select(id => _libraryManager.GetItemById(id))
                     .Where(item => item != null)
+                    .Take(maxSliderItems)
                     .ToList();
 
                 if (hydrated.Count > 0)
@@ -456,7 +485,7 @@ public class CopperFoxHomeController : ControllerBase
             {
                 Recursive = true,
                 IncludeItemTypes = new[] { BaseItemKind.Movie, BaseItemKind.Series },
-                Limit = 500
+                Limit = 1000
             };
 
             var pool = ApplyScopeFilter(_libraryManager.GetItemList(query), rowDef.Scope, discoverLibGuid)
@@ -490,10 +519,10 @@ public class CopperFoxHomeController : ControllerBase
                     if (!seenCollections.Add(boxSetId)) continue;
                 }
                 selected.Add(item);
-                if (selected.Count >= 10) break;
+                if (selected.Count >= maxSliderItems) break;
             }
 
-            _sliderCache[cacheKey] = (DateTime.UtcNow.AddHours(6), selected.Select(x => x.Id).ToList());
+            _sliderCache[cacheKey] = (DateTime.UtcNow.AddHours(24), selected.Select(x => x.Id).ToList());
             hasMore = false;
             return selected;
         }

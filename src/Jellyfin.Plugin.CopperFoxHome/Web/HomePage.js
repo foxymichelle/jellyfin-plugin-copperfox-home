@@ -174,7 +174,7 @@
 
     const playBtnHtml = isDiscover
       ? `<span style="width:40px;"></span>`
-      : `<button type="button" class="cf-hover-btn cf-btn-play itemAction" data-action="play" data-id="${item.Id}" title="Play" style="background:none;border:none;">
+      : `<button type="button" class="cf-hover-btn cf-btn-play itemAction" data-action="play" data-id="${item.Id}" data-type="${item.Type || "Movie"}" data-serverid="${ApiClient.serverId()}" title="Play" style="background:none;border:none;">
            <span class="cf-play-circle"><span class="material-icons play_arrow" style="font-size:26px;"></span></span>
          </button>`;
 
@@ -214,14 +214,9 @@
     scopeEl.querySelectorAll(".cf-btn-play").forEach(btn => {
       if (btn.dataset.bound) return;
       btn.dataset.bound = "1";
-      btn.onclick = function (e) {
-        e.preventDefault();
+      btn.addEventListener("click", function (e) {
         e.stopPropagation();
-        const id = btn.getAttribute("data-id");
-        if (window.playbackManager && typeof window.playbackManager.play === "function") {
-          window.playbackManager.play({ ids: [id], serverId: ApiClient.serverId() });
-        }
-      };
+      }, false);
     });
     scopeEl.querySelectorAll(".cf-btn-played").forEach(btn => {
       if (btn.dataset.bound) return;
