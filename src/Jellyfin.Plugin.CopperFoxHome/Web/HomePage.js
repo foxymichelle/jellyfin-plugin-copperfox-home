@@ -41,7 +41,7 @@
       .cf-service-tile img { max-width: 78%; max-height: 56%; object-fit: contain; filter: brightness(0) invert(1); }
       .cf-scroll-row { display: flex; flex-wrap: nowrap; overflow-x: auto; padding: 8px 3.3% 16px 3.3%; gap: 14px; -webkit-overflow-scrolling: touch; scrollbar-width: none; -ms-overflow-style: none; }
       .cf-scroll-row::-webkit-scrollbar { display: none; }
-      .cf-discover-divider { width: 93.4%; margin: 28px 3.3% 18px 3.3%; border: none; border-top: 1px solid rgba(255,255,255,0.18); }      
+      .cf-discover-divider { width: 93.4%; margin: 28px 2.3% 28px 2.3%; border: none; border-top: 2px outset rgba(255,255,255,0.6); }      
       .cf-slider-wrap { position: relative; width: 93.4%; margin: 8px 3.3% 24px 3.3%; height: 480px; border-radius: 10px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.65); cursor: pointer; background: #111; }
       .cf-slider-slide { position: absolute; inset: 0; background-size: cover; background-position: center 20%; opacity: 0; transition: opacity 0.45s ease; pointer-events: none; }
       .cf-slider-slide.active { opacity: 1; pointer-events: auto; }
@@ -392,7 +392,7 @@
               </div>
             </div>`;
         }).join("");
-        
+
         const dotsHtml = row.items.map((_, idx) =>
           `<span class="cf-slider-dot${idx === 0 ? " active" : ""}" data-idx="${idx}"></span>`
         ).join("");
