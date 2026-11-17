@@ -41,7 +41,6 @@
       .cf-service-tile img { max-width: 78%; max-height: 56%; object-fit: contain; filter: brightness(0) invert(1); }
       .cf-scroll-row { display: flex; flex-wrap: nowrap; overflow-x: auto; padding: 8px 3.3% 16px 3.3%; gap: 14px; -webkit-overflow-scrolling: touch; scrollbar-width: none; -ms-overflow-style: none; }
       .cf-scroll-row::-webkit-scrollbar { display: none; }
-      #homeTab .homeSectionsContainer, .homeSectionsContainer { display: none !important; }
       .cf-slider-wrap { position: relative; width: 93.4%; margin: 8px 3.3% 24px 3.3%; height: 480px; border-radius: 10px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.65); cursor: pointer; background: #111; }
       .cf-slider-slide { position: absolute; inset: 0; background-size: cover; background-position: center 20%; opacity: 0; transition: opacity 0.45s ease; pointer-events: none; }
       .cf-slider-slide.active { opacity: 1; pointer-events: auto; }
@@ -778,21 +777,45 @@
     inFlight = true;
     lastFetchTime = now;
     try {
-      const data = await ApiClient.fetch({
-        url: ApiClient.getUrl("CopperFoxHome/Rows", { userId: userId }),
+      let accumulatedRows = [];
+
+      // Stage 1: Instant 6-hour cached Top Hero Slider
+      const data1 = await ApiClient.fetch({
+        url: ApiClient.getUrl("CopperFoxHome/Rows", { userId: userId, stage: 1 }),
         type: "GET",
         dataType: "json"
-      });
-      const allRows = (data && data.rows) || [];
-      const firstBatch = allRows.slice(0, 3);
-      const restBatch = allRows.slice(3);
+      }).catch(() => null);
 
-      const resolvedFirst = await resolveClientRows(userId, { ...data, rows: firstBatch });
-      paintRows(container, resolvedFirst);
+      if (data1 && data1.rows && data1.rows.length > 0) {
+        const resolved1 = await resolveClientRows(userId, data1);
+        accumulatedRows = [...resolved1];
+        paintRows(container, accumulatedRows);
+      }
 
-      if (restBatch.length > 0) {
-        const resolvedRest = await resolveClientRows(userId, { ...data, rows: restBatch });
-        paintRows(container, [...resolvedFirst, ...resolvedRest]);
+      // Stage 2: Owned Library Rows
+      const data2 = await ApiClient.fetch({
+        url: ApiClient.getUrl("CopperFoxHome/Rows", { userId: userId, stage: 2 }),
+        type: "GET",
+        dataType: "json"
+      }).catch(() => null);
+
+      if (data2 && data2.rows && data2.rows.length > 0) {
+        const resolved2 = await resolveClientRows(userId, data2);
+        accumulatedRows = [...accumulatedRows, ...resolved2];
+        paintRows(container, accumulatedRows);
+      }
+
+      // Stage 3: Discover Only Rows
+      const data3 = await ApiClient.fetch({
+        url: ApiClient.getUrl("CopperFoxHome/Rows", { userId: userId, stage: 3 }),
+        type: "GET",
+        dataType: "json"
+      }).catch(() => null);
+
+      if (data3 && data3.rows && data3.rows.length > 0) {
+        const resolved3 = await resolveClientRows(userId, data3);
+        accumulatedRows = [...accumulatedRows, ...resolved3];
+        paintRows(container, accumulatedRows);
       }
     } catch (e) {
       console.error("CopperFox Home rows error:", e);
