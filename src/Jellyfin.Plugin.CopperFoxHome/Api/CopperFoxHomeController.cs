@@ -25,6 +25,7 @@ public class CopperFoxHomeController : ControllerBase
     private readonly ILibraryManager _libraryManager;
     private readonly IUserManager _userManager;
     private readonly IUserDataManager _userDataManager;
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, (DateTime ExpiresAt, List<Guid> ItemIds)> _sliderCache = new();
 
     public CopperFoxHomeController(
         ILibraryManager libraryManager,
@@ -59,10 +60,16 @@ public class CopperFoxHomeController : ControllerBase
         using var reader = new StreamReader(stream);
         return Content(reader.ReadToEnd(), "application/javascript");
     }
+    [HttpPost("ClearSliderCache")]
+    public ActionResult ClearSliderCache()
+    {
+        _sliderCache.Clear();
+        return Ok(new { cleared = true });
+    }
 
     [HttpGet("Rows")]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public ActionResult<object> GetRows([FromQuery] Guid? userId, [FromQuery] int? rowIndex, [FromQuery] int skip = 0)
+    public ActionResult<object> GetRows([FromQuery] Guid? userId, [FromQuery] int? stage, [FromQuery] int? rowIndex, [FromQuery] int skip = 0)
     {
         var config = Plugin.Instance?.Configuration ?? new PluginConfiguration();
         var resolvedUserId = userId ?? GetCurrentUserId();
@@ -75,15 +82,49 @@ public class CopperFoxHomeController : ControllerBase
         Guid.TryParse(config.DiscoverLibraryId, out var discoverLibGuid);
         var resultRows = new List<object>();
 
+        var unifiedRows = new List<(int Stage, CustomHomeRowDefinition Row)>();
+        var hero = config.HeroSlider ?? new HeroSliderConfig();
+        var legacySlider = (config.Rows ?? new List<CustomHomeRowDefinition>())
+            .FirstOrDefault(r => string.Equals(r.RowType, "SliderRow", StringComparison.OrdinalIgnoreCase));
+
+        if (hero.Enabled || legacySlider != null)
+        {
+            unifiedRows.Add((1, new CustomHomeRowDefinition
+            {
+                Title = !string.IsNullOrWhiteSpace(hero.Title) ? hero.Title : (legacySlider?.Title ?? "Featured"),
+                RowType = "SliderRow",
+                Scope = "OwnedOnly",
+                TargetValue = !string.IsNullOrWhiteSpace(hero.IncludeTags) ? hero.IncludeTags : (legacySlider?.TargetValue ?? string.Empty),
+                ExcludeTags = !string.IsNullOrWhiteSpace(hero.ExcludeTags) ? hero.ExcludeTags : (legacySlider?.ExcludeTags ?? string.Empty),
+                ImageStyle = "Thumb"
+            }));
+        }
+
+        var nonSliderRows = (config.Rows ?? new List<CustomHomeRowDefinition>())
+            .Where(r => !string.Equals(r.RowType, "SliderRow", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        foreach (var r in nonSliderRows.Where(r => !string.Equals(r.Scope, "DiscoverOnly", StringComparison.OrdinalIgnoreCase)))
+        {
+            unifiedRows.Add((2, r));
+        }
+
+        foreach (var r in nonSliderRows.Where(r => string.Equals(r.Scope, "DiscoverOnly", StringComparison.OrdinalIgnoreCase)))
+        {
+            unifiedRows.Add((3, r));
+        }
+
         var usedGenres = new HashSet<string>(
-            config.Rows
-                .Where(r => string.Equals(r.RowType, "Genre", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(r.TargetValue))
-                .Select(r => r.TargetValue.Trim()),
+            unifiedRows
+                .Where(u => string.Equals(u.Row.RowType, "Genre", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(u.Row.TargetValue))
+                .SelectMany(u => u.Row.TargetValue.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)),
             StringComparer.OrdinalIgnoreCase);
 
-        for (int i = 0; i < config.Rows.Count; i++)
+        for (int i = 0; i < unifiedRows.Count; i++)
         {
-            var rowDef = config.Rows[i];
+            var entry = unifiedRows[i];
+            var rowDef = entry.Row;
+
             if (rowIndex.HasValue && rowIndex.Value != i)
             {
                 if (rowDef.RowType.StartsWith("TopGenre", StringComparison.OrdinalIgnoreCase))
@@ -92,7 +133,16 @@ public class CopperFoxHomeController : ControllerBase
                 }
                 continue;
             }
-            
+
+            if (!rowIndex.HasValue && stage.HasValue && stage.Value != entry.Stage)
+            {
+                if (rowDef.RowType.StartsWith("TopGenre", StringComparison.OrdinalIgnoreCase))
+                {
+                    ResolveRowItems(rowDef, user, discoverLibGuid, usedGenres, 0, out _, out _);
+                }
+                continue;
+            }
+
             var allItems = ResolveRowItems(rowDef, user, discoverLibGuid, usedGenres, skip, out var dynamicTitle, out var hasMore);
             var isClientOnlyRow = string.Equals(rowDef.RowType, "StreamingServices", StringComparison.OrdinalIgnoreCase);
 
@@ -376,10 +426,22 @@ public class CopperFoxHomeController : ControllerBase
         if (string.Equals(rowDef.RowType, "SliderRow", StringComparison.OrdinalIgnoreCase))
         {
             if (skip > 0) return new List<BaseItem>();
-            var isDiscover = string.Equals(rowDef.Scope, "DiscoverOnly", StringComparison.OrdinalIgnoreCase);
-            dynamicTitle = string.IsNullOrWhiteSpace(rowDef.Title)
-                ? (isDiscover ? "DISCOVER Featured" : "Featured")
-                : rowDef.Title;
+            dynamicTitle = string.IsNullOrWhiteSpace(rowDef.Title) ? "Featured" : rowDef.Title;
+
+            var cacheKey = $"{user.Id:N}|{rowDef.Scope}|{rowDef.TargetValue}|{rowDef.ExcludeTags}";
+            if (_sliderCache.TryGetValue(cacheKey, out var cached) && cached.ExpiresAt > DateTime.UtcNow && cached.ItemIds.Count > 0)
+            {
+                var hydrated = cached.ItemIds
+                    .Select(id => _libraryManager.GetItemById(id))
+                    .Where(item => item != null)
+                    .ToList();
+
+                if (hydrated.Count > 0)
+                {
+                    hasMore = false;
+                    return hydrated!;
+                }
+            }
 
             var includeTags = (rowDef.TargetValue ?? string.Empty)
                 .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
@@ -393,7 +455,7 @@ public class CopperFoxHomeController : ControllerBase
             {
                 Recursive = true,
                 IncludeItemTypes = new[] { BaseItemKind.Movie, BaseItemKind.Series },
-                Limit = 1000
+                Limit = 500
             };
 
             var pool = ApplyScopeFilter(_libraryManager.GetItemList(query), rowDef.Scope, discoverLibGuid)
@@ -403,7 +465,6 @@ public class CopperFoxHomeController : ControllerBase
                 .OrderBy(_ => Random.Shared.Next())
                 .ToList();
 
-            // Map each movie ID to its BoxSet collection ID so only 1 movie per collection is picked
             var movieToBoxSet = new Dictionary<Guid, Guid>();
             var boxSets = _libraryManager.GetItemList(new InternalItemsQuery(user)
             {
@@ -431,6 +492,7 @@ public class CopperFoxHomeController : ControllerBase
                 if (selected.Count >= 10) break;
             }
 
+            _sliderCache[cacheKey] = (DateTime.UtcNow.AddHours(6), selected.Select(x => x.Id).ToList());
             hasMore = false;
             return selected;
         }

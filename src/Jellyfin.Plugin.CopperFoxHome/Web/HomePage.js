@@ -41,6 +41,7 @@
       .cf-service-tile img { max-width: 78%; max-height: 56%; object-fit: contain; filter: brightness(0) invert(1); }
       .cf-scroll-row { display: flex; flex-wrap: nowrap; overflow-x: auto; padding: 8px 3.3% 16px 3.3%; gap: 14px; -webkit-overflow-scrolling: touch; scrollbar-width: none; -ms-overflow-style: none; }
       .cf-scroll-row::-webkit-scrollbar { display: none; }
+      #homeTab .homeSectionsContainer, .homeSectionsContainer { display: none !important; }
       .cf-slider-wrap { position: relative; width: 93.4%; margin: 8px 3.3% 24px 3.3%; height: 480px; border-radius: 10px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.65); cursor: pointer; background: #111; }
       .cf-slider-slide { position: absolute; inset: 0; background-size: cover; background-position: center 20%; opacity: 0; transition: opacity 0.45s ease; pointer-events: none; }
       .cf-slider-slide.active { opacity: 1; pointer-events: auto; }

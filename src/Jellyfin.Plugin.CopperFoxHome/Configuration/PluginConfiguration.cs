@@ -11,7 +11,17 @@ public class PluginConfiguration : BasePluginConfiguration
 
     public List<string> ExcludedMyMediaIds { get; set; } = new List<string>();
 
+    public HeroSliderConfig HeroSlider { get; set; } = new HeroSliderConfig();
+
     public List<CustomHomeRowDefinition> Rows { get; set; } = new List<CustomHomeRowDefinition>();
+}
+
+public class HeroSliderConfig
+{
+    public bool Enabled { get; set; } = true;
+    public string Title { get; set; } = "Featured";
+    public string IncludeTags { get; set; } = string.Empty;
+    public string ExcludeTags { get; set; } = string.Empty;
 }
 
 public class CustomHomeRowDefinition
