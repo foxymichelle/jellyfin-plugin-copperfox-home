@@ -41,7 +41,7 @@
       .cf-service-tile img { max-width: 78%; max-height: 56%; object-fit: contain; filter: brightness(0) invert(1); }
       .cf-scroll-row { display: flex; flex-wrap: nowrap; overflow-x: auto; padding: 8px 3.3% 16px 3.3%; gap: 14px; -webkit-overflow-scrolling: touch; scrollbar-width: none; -ms-overflow-style: none; }
       .cf-scroll-row::-webkit-scrollbar { display: none; }
-      .cf-slider-wrap { position: relative; width: 93.4%; margin: 8px 3.3% 24px 3.3%; height: 480px; border-radius: 10px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.65); cursor: pointer; background: #111; }
+      .cf-discover-divider { width: 93.4%; margin: 28px 3.3% 18px 3.3%; border: none; border-top: 1px solid rgba(255,255,255,0.18); }      .cf-slider-wrap { position: relative; width: 93.4%; margin: 8px 3.3% 24px 3.3%; height: 480px; border-radius: 10px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.65); cursor: pointer; background: #111; }
       .cf-slider-slide { position: absolute; inset: 0; background-size: cover; background-position: center 20%; opacity: 0; transition: opacity 0.45s ease; pointer-events: none; }
       .cf-slider-slide.active { opacity: 1; pointer-events: auto; }
       .cf-slider-gradient { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.15) 40%, rgba(0,0,0,0.85) 100%); pointer-events: none; }
@@ -172,9 +172,10 @@
            <span class="material-icons check" style="font-size:22px;"></span>
          </button>`;
 
+    const cfIsFolder = (item.Type === "Series" || item.Type === "BoxSet" || item.Type === "Season") ? "true" : "false";
     const playBtnHtml = isDiscover
       ? `<span style="width:40px;"></span>`
-      : `<button type="button" class="cf-hover-btn cf-btn-play itemAction" data-action="play" data-id="${item.Id}" data-type="${item.Type || "Movie"}" data-serverid="${ApiClient.serverId()}" title="Play" style="background:none;border:none;">
+      : `<button type="button" class="cf-hover-btn cf-btn-play itemAction" data-action="play" data-id="${item.Id}" data-type="${item.Type || "Movie"}" data-isfolder="${cfIsFolder}" data-serverid="${ApiClient.serverId()}" title="Play" style="background:none;border:none;">
            <span class="cf-play-circle"><span class="material-icons play_arrow" style="font-size:26px;"></span></span>
          </button>`;
 
@@ -188,8 +189,7 @@
       </div>`;
 
     return `
-      <div class="card ${isThumb ? "backdropCard" : "portraitCard"} card-hoverable card-withuserdata cf-item-card" data-id="${navId}" data-item-id="${item.Id}" style="width:${cardWidth};min-width:${cardWidth};flex:0 0 auto;">
-        <div class="cardBox visualCardBox">
+      <div class="card ${isThumb ? "backdropCard" : "portraitCard"} card-hoverable card-withuserdata cf-item-card" data-id="${navId}" data-item-id="${item.Id}" data-type="${item.Type || "Movie"}" data-isfolder="${cfIsFolder}" data-serverid="${ApiClient.serverId()}" style="width:${cardWidth};min-width:${cardWidth};flex:0 0 auto;">        <div class="cardBox visualCardBox">
           <div class="cardScalable">
             <div class="cardPadder ${padderClass}"></div>
             <a href="${href}" class="cardImageContainer coveredImage cardContent itemAction" style="background-image:url('${imgUrl}');"></a>
@@ -215,8 +215,21 @@
       if (btn.dataset.bound) return;
       btn.dataset.bound = "1";
       btn.addEventListener("click", function (e) {
+        e.preventDefault();
         e.stopPropagation();
-      }, false);
+        const id = btn.getAttribute("data-id");
+        const proxy = document.createElement("button");
+        proxy.className = "itemAction";
+        proxy.setAttribute("data-action", "play");
+        proxy.setAttribute("data-id", id);
+        proxy.setAttribute("data-type", btn.getAttribute("data-type") || "Movie");
+        proxy.setAttribute("data-isfolder", btn.getAttribute("data-isfolder") || "false");
+        proxy.setAttribute("data-serverid", ApiClient.serverId());
+        proxy.style.display = "none";
+        document.body.appendChild(proxy);
+        proxy.click();
+        setTimeout(() => proxy.remove(), 100);
+      }, true);
     });
     scopeEl.querySelectorAll(".cf-btn-played").forEach(btn => {
       if (btn.dataset.bound) return;
@@ -238,6 +251,16 @@
           console.error("Toggle watched failed:", err);
         }
       };
+    });
+    scopeEl.querySelectorAll(".cf-item-card").forEach(card => {
+      if (card.dataset.cfNavBound) return;
+      card.dataset.cfNavBound = "1";
+      card.addEventListener("click", function (e) {
+        if (e.target.closest(".cf-btn-play, .cf-btn-played, .cf-btn-fav, .cf-btn-more")) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      }, true);
     });
 
     scopeEl.querySelectorAll(".cf-btn-fav").forEach(btn => {
@@ -345,13 +368,15 @@
       if (!row.items || !row.items.length) continue;
 
       if (row.rowType === "SliderRow") {
-        let section = document.getElementById(row.key);
-        if (!section) {
-          section = document.createElement("div");
-          section.id = row.key;
-          section.className = "cf-custom-section";
-          section.style.cssText = "display:block;width:100%;";
+        const isDiscoverSlider = (row.scope === "DiscoverOnly") || (row.title || "").toUpperCase().startsWith("DISCOVER");
+        if (isDiscoverSlider && !document.getElementById("cf-discover-divider")) {
+          const hr = document.createElement("hr");
+          hr.id = "cf-discover-divider";
+          hr.className = "cf-discover-divider";
+          container.appendChild(hr);
         }
+
+        let section = document.getElementById(row.key);
 
         const displayTitle = (row.title || "").replace(/:$/, "");
         const slidesHtml = row.items.map((item, idx) => {
