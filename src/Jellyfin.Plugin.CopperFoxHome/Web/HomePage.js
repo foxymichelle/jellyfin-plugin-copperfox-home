@@ -369,32 +369,20 @@
 
       if (row.rowType === "SliderRow") {
         const isDiscoverSlider = (row.scope === "DiscoverOnly") || (row.title || "").toUpperCase().startsWith("DISCOVER");
-        if (isDiscoverSlider && !document.getElementById("cf-discover-divider")) {
+        if (isDiscoverSlider && !container.querySelector(".cf-discover-divider")) {
           const hr = document.createElement("hr");
-          hr.id = "cf-discover-divider";
           hr.className = "cf-discover-divider";
           container.appendChild(hr);
         }
 
-        let section = document.getElementById(row.key);
-
-        const displayTitle = (row.title || "").replace(/:$/, "");
-        const slidesHtml = row.items.map((item, idx) => {
-          const bgUrl = (Array.isArray(item.BackdropImageTags) && item.BackdropImageTags.length > 0)
-            ? ApiClient.getImageUrl(item.Id, { type: "Backdrop", maxWidth: 1600 })
-            : getThumbOrBackdropUrl(item, 1600);
-          const href = getItemHref(item);
-          return `
-            <div class="cf-slider-slide ${idx === 0 ? "active" : ""}" data-idx="${idx}" data-href="${href}" style="background-image:url('${bgUrl}');">
-              <div class="cf-slider-gradient"></div>
-              <div class="cf-slider-caption">
-                <h3>${item.Name || ""}</h3>
-                ${item.Overview ? `<p>${item.Overview}</p>` : ""}
-              </div>
-            </div>`;
-        }).join("");
-
-        const dotsHtml = row.items.map((_, idx) => `<span class="cf-slider-dot ${idx === 0 ? "active" : ""}" data-idx="${idx}"></span>`).join("");
+        let section = container.querySelector(`[data-cf-key="${row.key}"]`);
+        if (!section) {
+          section = document.createElement("div");
+          section.setAttribute("data-cf-key", row.key);
+          section.className = "cf-custom-section";
+          section.style.cssText = "display:block;width:100%;";
+          container.appendChild(section);
+        }
 
         section.innerHTML = `
           <div class="cf-slider-wrap" data-active="0" data-count="${row.items.length}">
@@ -404,8 +392,6 @@
             <button type="button" class="cf-slider-arrow cf-slider-next" aria-label="Next"><span class="material-icons chevron_right" style="font-size:30px;"></span></button>
             <div class="cf-slider-dots">${dotsHtml}</div>
           </div>`;
-
-        container.appendChild(section);
 
         const wrap = section.querySelector(".cf-slider-wrap");
         const goSlide = (nextIdx) => {
