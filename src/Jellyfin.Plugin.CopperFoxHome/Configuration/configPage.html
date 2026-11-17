@@ -81,7 +81,7 @@
     </div>
         <script type="text/javascript">
             (function () {
-                var pluginId = "f7a8b9c0-1d2e-4f3a-9b8c-7d6e5f4a3b2c";
+                var pluginId = "c099e7f0-4a1b-4c8d-9e2a-7f1b3c5d8e9a";
                 var ownedRows = [];
                 var discoverRows = [];
                 var availableCollections = [];
@@ -296,23 +296,32 @@
                     Dashboard.showLoadingMsg();
                     var userId = ApiClient.getCurrentUserId();
 
-                    Promise.all([
-                        ApiClient.getPluginConfiguration(pluginId),
-                        ApiClient.getJSON(ApiClient.getUrl("Users/" + userId + "/Items", { Recursive: true, IncludeItemTypes: "BoxSet,Playlist", SortBy: "SortName", SortOrder: "Ascending" })),
-                        ApiClient.getJSON(ApiClient.getUrl("Users/" + userId + "/Views"))
-                    ]).then(function (results) {
-                        var config = results.shift() || {};
-                        var colResp = results.shift() || {};
-                        var viewResp = results.shift() || {};
-                        availableCollections = (colResp.Items || []).map(function (i) { return { Id: i.Id, Name: i.Name }; });
+                    ApiClient.getJSON(ApiClient.getUrl("Users/" + userId + "/Views")).then(function (viewResp) {
                         availableViews = (viewResp.Items || []).map(function (v) { return { Id: v.Id, Name: v.Name }; });
-
                         var libSelect = document.getElementById("selectDiscoverLibrary");
                         libSelect.innerHTML = '<option value="">-- None Selected --</option>';
                         availableViews.forEach(function (v) {
                             libSelect.innerHTML += '<option value="' + v.Id + '">' + v.Name + '</option>';
                         });
-                        libSelect.value = config.DiscoverLibraryId || "";
+                        if (window._cfLoadedDiscoverId) libSelect.value = window._cfLoadedDiscoverId;
+                        renderMyMediaList();
+                    });
+
+                    ApiClient.getJSON(ApiClient.getUrl("Users/" + userId + "/Items", {
+                        Recursive: true,
+                        IncludeItemTypes: "BoxSet,Playlist",
+                        SortBy: "SortName",
+                        SortOrder: "Ascending"
+                    })).then(function (colResp) {
+                        availableCollections = (colResp.Items || []).map(function (i) { return { Id: i.Id, Name: i.Name }; });
+                        renderOwnedRows();
+                    });
+
+                    ApiClient.getPluginConfiguration(pluginId).then(function (config) {
+                        config = config || {};
+                        window._cfLoadedDiscoverId = config.DiscoverLibraryId || "";
+                        var libSelect = document.getElementById("selectDiscoverLibrary");
+                        if (libSelect) libSelect.value = window._cfLoadedDiscoverId;
 
                         var allRows = config.Rows || [];
                         var legacySlider = allRows.find(function (r) { return r.RowType === "SliderRow"; });
