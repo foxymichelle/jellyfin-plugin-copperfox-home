@@ -185,8 +185,7 @@
       </div>`;
 
     return `
-      <div class="card ${isThumb ? "backdropCard" : "portraitCard"} card-hoverable card-withuserdata cf-item-card" data-id="${navId}" data-item-id="${item.Id}" data-type="${item.Type || "Movie"}" data-isfolder="${cfIsFolder}" data-serverid="${ApiClient.serverId()}" style="width:${cardWidth};min-width:${cardWidth};flex:0 0 auto;">        <div class="cardBox visualCardBox">
-          <div class="cardScalable">
+      <div class="card ${isThumb ? "backdropCard" : "portraitCard"} card-hoverable card-withuserdata cf-item-card" data-id="${navId}" data-item-id="${item.Id}" style="width:${cardWidth};min-width:${cardWidth};flex:0 0 auto;">          <div class="cardScalable">
             <div class="cardPadder ${padderClass}"></div>
             <a href="${href}" class="cardImageContainer coveredImage cardContent itemAction" style="background-image:url('${imgUrl}');"></a>
             ${tlBadgeHtml}
