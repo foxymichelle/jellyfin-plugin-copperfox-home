@@ -41,7 +41,7 @@
       .cf-service-tile img { max-width: 78%; max-height: 56%; object-fit: contain; filter: brightness(0) invert(1); }
       .cf-scroll-row { display: flex; flex-wrap: nowrap; overflow-x: auto; padding: 8px 3.3% 16px 3.3%; gap: 14px; -webkit-overflow-scrolling: touch; scrollbar-width: none; -ms-overflow-style: none; }
       .cf-scroll-row::-webkit-scrollbar { display: none; }
-      .cf-discover-divider { width: 93.4%; margin: 28px 2.3% 28px 2.3%; border: none; border-top: 2px outset rgba(255,255,255,0.6); }      
+      .cf-discover-divider { width: 93.4%; margin: 28px 3.3% 28px 3.3%; border: none; border-top: 2px outset rgba(255,255,255,0.45); }      
       .cf-slider-wrap { position: relative; width: 93.4%; margin: 8px 3.3% 24px 3.3%; height: 480px; border-radius: 10px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.65); cursor: pointer; background: #111; }
       .cf-slider-slide { position: absolute; inset: 0; background-size: cover; background-position: center 20%; opacity: 0; transition: opacity 0.45s ease; pointer-events: none; }
       .cf-slider-slide.active { opacity: 1; pointer-events: auto; }
@@ -173,12 +173,7 @@
            <span class="material-icons check" style="font-size:22px;"></span>
          </button>`;
 
-    const cfIsFolder = (item.Type === "Series" || item.Type === "BoxSet" || item.Type === "Season") ? "true" : "false";
-    const playBtnHtml = isDiscover
-      ? `<span style="width:40px;"></span>`
-      : `<button type="button" class="cf-hover-btn cf-btn-play itemAction" data-action="play" data-id="${item.Id}" data-type="${item.Type || "Movie"}" data-isfolder="${cfIsFolder}" data-serverid="${ApiClient.serverId()}" title="Play" style="background:none;border:none;">
-           <span class="cf-play-circle"><span class="material-icons play_arrow" style="font-size:26px;"></span></span>
-         </button>`;
+    const playBtnHtml = `<span style="width:40px;"></span>`;
 
     const overlayHtml = isFolder ? "" : `
       <div class="cf-hover-overlay">
@@ -212,33 +207,6 @@
   }
 
   function bindCardInteractions(scopeEl) {
-    scopeEl.querySelectorAll(".cf-btn-play").forEach(btn => {
-      if (btn.dataset.bound) return;
-      btn.dataset.bound = "1";
-      btn.addEventListener("click", async function (e) {
-        e.preventDefault();
-        e.stopPropagation();
-        const id = btn.getAttribute("data-id");
-        const serverId = ApiClient.serverId();
-        try {
-          if (window.Emby && typeof window.Emby.importModule === "function") {
-            const mod = await window.Emby.importModule("./modules/common/playback/playbackmanager.js");
-            const pm = mod.playbackManager || mod.default || mod;
-            if (pm && typeof pm.play === "function") {
-              pm.play({ ids: [id], serverId: serverId });
-              return;
-            }
-          }
-          if (window.require) {
-            window.require(["playbackManager"], function (pm) {
-              pm.play({ ids: [id], serverId: serverId });
-            });
-          }
-        } catch (err) {
-          console.error("CopperFox play failed:", err);
-        }
-      }, true);
-    });
     scopeEl.querySelectorAll(".cf-btn-played").forEach(btn => {
       if (btn.dataset.bound) return;
       btn.dataset.bound = "1";
@@ -264,46 +232,11 @@
       if (card.dataset.cfNavBound) return;
       card.dataset.cfNavBound = "1";
       card.addEventListener("click", function (e) {
-        if (e.target.closest(".cf-btn-play, .cf-btn-played, .cf-btn-fav, .cf-btn-more")) {
+        if (e.target.closest(".cf-btn-played, .cf-btn-fav")) {
           e.preventDefault();
           e.stopPropagation();
         }
       }, true);
-
-      card.addEventListener("contextmenu", async function (e) {
-        e.preventDefault();
-        e.stopPropagation();
-        const itemId = card.getAttribute("data-item-id") || card.getAttribute("data-id");
-        const userId = ApiClient.getCurrentUserId();
-        try {
-          const item = await ApiClient.getItem(userId, itemId);
-          if (window.Emby && typeof window.Emby.importModule === "function") {
-            const mod = await window.Emby.importModule("./modules/itemcontextmenu.js");
-            const menu = mod.default || mod;
-            if (menu && typeof menu.show === "function") {
-              menu.show({
-                item: item,
-                positionTo: card,
-                positionX: e.clientX,
-                positionY: e.clientY
-              });
-              return;
-            }
-          }
-          if (window.require) {
-            window.require(["itemContextMenu"], function (menu) {
-              menu.show({
-                item: item,
-                positionTo: card,
-                positionX: e.clientX,
-                positionY: e.clientY
-              });
-            });
-          }
-        } catch (err) {
-          console.error("CopperFox context menu failed:", err);
-        }
-      });
     });
 
     scopeEl.querySelectorAll(".cf-btn-fav").forEach(btn => {
