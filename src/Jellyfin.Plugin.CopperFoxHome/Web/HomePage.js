@@ -385,14 +385,14 @@
           const overview = (item.Overview || "").replace(/</g, "&lt;").replace(/>/g, "&gt;");
           return `
             <div class="cf-slider-slide${idx === 0 ? " active" : ""}" data-idx="${idx}" data-href="#/details?id=${item.Id}" style="background-image:url('${imgUrl}');">
-              <div class="cf-slider-scrim"></div>
-              <div class="cf-slider-meta">
-                <div class="cf-slider-title">${(item.Name || "").replace(/</g, "&lt;")}${year}</div>
-                <div class="cf-slider-caption">${overview}</div>
+              <div class="cf-slider-gradient"></div>
+              <div class="cf-slider-caption">
+                <h3>${(item.Name || "").replace(/</g, "&lt;")}${year}</h3>
+                <p>${overview}</p>
               </div>
             </div>`;
         }).join("");
-
+        
         const dotsHtml = row.items.map((_, idx) =>
           `<span class="cf-slider-dot${idx === 0 ? " active" : ""}" data-idx="${idx}"></span>`
         ).join("");
