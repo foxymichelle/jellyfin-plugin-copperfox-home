@@ -91,8 +91,7 @@
 
                 function createRowCard(row, index, listRef, renderFn, isDiscoverSection) {
                     var card = document.createElement("div");
-                    card.style.cssText = "background:#202020;border:1px solid #383838;border-radius:8px;padding:16px;display:flex;flex-direction:column;gap:12px;";
-
+                    card.style.cssText = "background:#202020;border:1px solid #383838;border-radius:8px;padding:16px;display:flex;flex-direction:row;align-items:stretch;gap:14px;";
                     var isCollection = row.RowType === "Collection";
                     var isSystem = ["MyMedia", "ContinueAndUpNext", "RecentlyAdded", "LatestMovies", "LatestShows", "StreamingServices"].indexOf(row.RowType) !== -1;
                     var isTopGenre = ["TopGenre1", "TopGenre2", "TopGenre3", "BecauseYouWatched"].indexOf(row.RowType) !== -1;
@@ -124,12 +123,14 @@
                     var styleMode = row.ImageStyle || (isSystem ? "Thumb" : "Poster");
                     var radioName = (isDiscoverSection ? "discStyle_" : "ownStyle_") + index + "_" + Math.random().toString(36).slice(2, 6);
 
+                    var arrowColHtml =
+                        '<div style="display:flex;flex-direction:column;justify-content:center;gap:6px;">' +
+                            '<button type="button" class="btn-up" style="flex:1;min-height:30px;padding:6px 12px;background:#2a2a2a;color:#fff;border:1px solid #444;border-radius:4px;cursor:pointer;font-size:14px;">▲</button>' +
+                            '<button type="button" class="btn-down" style="flex:1;min-height:30px;padding:6px 12px;background:#2a2a2a;color:#fff;border:1px solid #444;border-radius:4px;cursor:pointer;font-size:14px;">▼</button>' +
+                        '</div>';
+
                     var topHtml =
-                        '<div style="display:grid;grid-template-columns:auto 2fr 2fr auto auto;gap:12px;align-items:center;">' +
-                            '<div style="display:flex;flex-direction:column;gap:4px;">' +
-                                '<button type="button" class="btn-up" style="padding:3px 9px;background:#2a2a2a;color:#fff;border:1px solid #444;border-radius:4px;cursor:pointer;font-size:11px;">▲</button>' +
-                                '<button type="button" class="btn-down" style="padding:3px 9px;background:#2a2a2a;color:#fff;border:1px solid #444;border-radius:4px;cursor:pointer;font-size:11px;">▼</button>' +
-                            '</div>' +
+                        '<div style="display:grid;grid-template-columns:2fr 2fr auto auto;gap:12px;align-items:center;">' +
                             '<input type="text" class="row-title" value="' + (row.Title || "") + '" placeholder="Row Title (blank = auto)" style="width:100%;box-sizing:border-box;padding:9px;font-size:14px;background:#181818;color:#fff;border:1px solid #444;border-radius:4px;" />' +
                             '<select class="row-type" style="width:100%;box-sizing:border-box;padding:9px;font-size:14px;background:#181818;color:#fff;border:1px solid #444;border-radius:4px;">' + typeOptions + '</select>' +
                             '<div style="display:flex;gap:10px;font-size:13px;">' +
@@ -157,8 +158,8 @@
                             '</div>';
                     }
 
-                    card.innerHTML = topHtml + bottomHtml;
-
+                    card.innerHTML = arrowColHtml + '<div style="flex:1;display:flex;flex-direction:column;gap:12px;">' + topHtml + bottomHtml + '</div>';
+                    
                     card.querySelector(".row-title").onchange = function (e) { listRef[index].Title = e.target.value; };
                     card.querySelector(".row-type").onchange = function (e) {
                         var nt = e.target.value;
@@ -300,9 +301,9 @@
                         ApiClient.getItems(userId, { Recursive: true, IncludeItemTypes: "BoxSet,Playlist", SortBy: "SortName" }),
                         ApiClient.getUserViews({}, userId)
                     ]).then(function (results) {
-                        var config = results[0] || {};
-                        var colResp = results[1] || {};
-                        var viewResp = results[2] || {};
+                        var config = results.at(0) || {};
+                        var colResp = results.at(1) || {};
+                        var viewResp = results.at(2) || {};
                         availableCollections = (colResp.Items || []).map(function (i) { return { Id: i.Id, Name: i.Name }; });
                         availableViews = (viewResp.Items || []).map(function (v) { return { Id: v.Id, Name: v.Name }; });
 
