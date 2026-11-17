@@ -61,6 +61,7 @@ public class CopperFoxHomeController : ControllerBase
         return Content(reader.ReadToEnd(), "application/javascript");
     }
     [HttpPost("ClearSliderCache")]
+    [AllowAnonymous]
     public ActionResult ClearSliderCache()
     {
         _sliderCache.Clear();

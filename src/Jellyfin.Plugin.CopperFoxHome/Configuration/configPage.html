@@ -125,18 +125,18 @@
                     var radioName = (isDiscoverSection ? "discStyle_" : "ownStyle_") + index + "_" + Math.random().toString(36).slice(2, 6);
 
                     var topHtml =
-                        '<div style="display:grid;grid-template-columns:2fr 2fr auto auto;gap:12px;align-items:center;">' +
+                        '<div style="display:grid;grid-template-columns:auto 2fr 2fr auto auto;gap:12px;align-items:center;">' +
+                            '<div style="display:flex;flex-direction:column;gap:4px;">' +
+                                '<button type="button" class="btn-up" style="padding:3px 9px;background:#2a2a2a;color:#fff;border:1px solid #444;border-radius:4px;cursor:pointer;font-size:11px;">▲</button>' +
+                                '<button type="button" class="btn-down" style="padding:3px 9px;background:#2a2a2a;color:#fff;border:1px solid #444;border-radius:4px;cursor:pointer;font-size:11px;">▼</button>' +
+                            '</div>' +
                             '<input type="text" class="row-title" value="' + (row.Title || "") + '" placeholder="Row Title (blank = auto)" style="width:100%;box-sizing:border-box;padding:9px;font-size:14px;background:#181818;color:#fff;border:1px solid #444;border-radius:4px;" />' +
                             '<select class="row-type" style="width:100%;box-sizing:border-box;padding:9px;font-size:14px;background:#181818;color:#fff;border:1px solid #444;border-radius:4px;">' + typeOptions + '</select>' +
                             '<div style="display:flex;gap:10px;font-size:13px;">' +
                                 '<label style="cursor:pointer;"><input type="radio" name="' + radioName + '" value="Poster"' + (styleMode === "Poster" ? " checked" : "") + ' /> Poster</label>' +
                                 '<label style="cursor:pointer;"><input type="radio" name="' + radioName + '" value="Thumb"' + (styleMode === "Thumb" ? " checked" : "") + ' /> Thumb</label>' +
                             '</div>' +
-                            '<div style="display:flex;gap:6px;">' +
-                                '<button type="button" class="btn-up" style="padding:6px 10px;background:#2a2a2a;color:#fff;border:1px solid #444;border-radius:4px;cursor:pointer;">▲</button>' +
-                                '<button type="button" class="btn-down" style="padding:6px 10px;background:#2a2a2a;color:#fff;border:1px solid #444;border-radius:4px;cursor:pointer;">▼</button>' +
-                                '<button type="button" class="btn-del" style="padding:6px 12px;background:#7a1c1c;color:#fff;border:none;border-radius:4px;cursor:pointer;">✕</button>' +
-                            '</div>' +
+                            '<button type="button" class="btn-del" style="padding:7px 12px;background:#7a1c1c;color:#fff;border:none;border-radius:4px;cursor:pointer;" title="Delete Row">✕</button>' +
                         '</div>';
 
                     var bottomHtml = "";
@@ -166,8 +166,7 @@
                         listRef[index].TargetValue = "";
                         listRef[index].ExcludeTags = "";
                         listRef[index].ImageStyle = ["MyMedia", "ContinueAndUpNext", "RecentlyAdded", "LatestMovies", "LatestShows", "StreamingServices"].indexOf(nt) !== -1 ? "Thumb" : "Poster";
-                        listRef[index].GroupIntoCollections = (nt === "TagMatch" || nt === "Genre");
-                        renderFn();
+                        listRef[index].GroupIntoCollections = (nt !== "Collection");                        renderFn();
                     };
                     card.querySelectorAll('input[type="radio"]').forEach(function (r) {
                         r.onchange = function (e) { if (e.target.checked) listRef[index].ImageStyle = e.target.value; };
@@ -277,12 +276,12 @@
                 }
 
                 document.getElementById("btnAddOwnedRow").onclick = function () {
-                    ownedRows.push({ Title: "", RowType: "RecentlyAdded", Scope: "OwnedOnly", TargetValue: "", ExcludeTags: "", ImageStyle: "Thumb", GroupIntoCollections: false });
+                    ownedRows.push({ Title: "", RowType: "RecentlyAdded", Scope: "OwnedOnly", TargetValue: "", ExcludeTags: "", ImageStyle: "Thumb", GroupIntoCollections: true });
                     renderOwnedRows();
                 };
 
                 document.getElementById("btnAddDiscoverRow").onclick = function () {
-                    discoverRows.push({ Title: "", RowType: "RecentlyAdded", Scope: "DiscoverOnly", TargetValue: "", ExcludeTags: "", ImageStyle: "Thumb", GroupIntoCollections: false });
+                    discoverRows.push({ Title: "", RowType: "RecentlyAdded", Scope: "DiscoverOnly", TargetValue: "", ExcludeTags: "", ImageStyle: "Thumb", GroupIntoCollections: true });
                     renderDiscoverRows();
                 };
 
@@ -301,9 +300,11 @@
                         ApiClient.getItems(userId, { Recursive: true, IncludeItemTypes: "BoxSet,Playlist", SortBy: "SortName" }),
                         ApiClient.getUserViews({}, userId)
                     ]).then(function (results) {
-                        var config = results || {};
-                        availableCollections = (results.Items || []).map(function (i) { return { Id: i.Id, Name: i.Name }; });
-                        availableViews = (results.Items || []).map(function (v) { return { Id: v.Id, Name: v.Name }; });
+                        var config = results[0] || {};
+                        var colResp = results[1] || {};
+                        var viewResp = results[2] || {};
+                        availableCollections = (colResp.Items || []).map(function (i) { return { Id: i.Id, Name: i.Name }; });
+                        availableViews = (viewResp.Items || []).map(function (v) { return { Id: v.Id, Name: v.Name }; });
 
                         var libSelect = document.getElementById("selectDiscoverLibrary");
                         libSelect.innerHTML = '<option value="">-- None Selected --</option>';
@@ -330,6 +331,8 @@
                         renderOwnedRows();
                         renderDiscoverRows();
                         renderMyMediaList();
+                        Dashboard.hideLoadingMsg();
+                    }).catch(function () {
                         Dashboard.hideLoadingMsg();
                     });
                 });
