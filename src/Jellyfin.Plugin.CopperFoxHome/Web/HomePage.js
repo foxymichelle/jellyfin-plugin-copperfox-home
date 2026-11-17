@@ -215,21 +215,28 @@
     scopeEl.querySelectorAll(".cf-btn-play").forEach(btn => {
       if (btn.dataset.bound) return;
       btn.dataset.bound = "1";
-      btn.addEventListener("click", function (e) {
+      btn.addEventListener("click", async function (e) {
         e.preventDefault();
         e.stopPropagation();
         const id = btn.getAttribute("data-id");
-        const proxy = document.createElement("button");
-        proxy.className = "itemAction";
-        proxy.setAttribute("data-action", "play");
-        proxy.setAttribute("data-id", id);
-        proxy.setAttribute("data-type", btn.getAttribute("data-type") || "Movie");
-        proxy.setAttribute("data-isfolder", btn.getAttribute("data-isfolder") || "false");
-        proxy.setAttribute("data-serverid", ApiClient.serverId());
-        proxy.style.display = "none";
-        document.body.appendChild(proxy);
-        proxy.click();
-        setTimeout(() => proxy.remove(), 100);
+        const serverId = ApiClient.serverId();
+        try {
+          if (window.Emby && typeof window.Emby.importModule === "function") {
+            const mod = await window.Emby.importModule("./modules/common/playback/playbackmanager.js");
+            const pm = mod.playbackManager || mod.default || mod;
+            if (pm && typeof pm.play === "function") {
+              pm.play({ ids: [id], serverId: serverId });
+              return;
+            }
+          }
+          if (window.require) {
+            window.require(["playbackManager"], function (pm) {
+              pm.play({ ids: [id], serverId: serverId });
+            });
+          }
+        } catch (err) {
+          console.error("CopperFox play failed:", err);
+        }
       }, true);
     });
     scopeEl.querySelectorAll(".cf-btn-played").forEach(btn => {
@@ -262,6 +269,41 @@
           e.stopPropagation();
         }
       }, true);
+
+      card.addEventListener("contextmenu", async function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const itemId = card.getAttribute("data-item-id") || card.getAttribute("data-id");
+        const userId = ApiClient.getCurrentUserId();
+        try {
+          const item = await ApiClient.getItem(userId, itemId);
+          if (window.Emby && typeof window.Emby.importModule === "function") {
+            const mod = await window.Emby.importModule("./modules/itemcontextmenu.js");
+            const menu = mod.default || mod;
+            if (menu && typeof menu.show === "function") {
+              menu.show({
+                item: item,
+                positionTo: card,
+                positionX: e.clientX,
+                positionY: e.clientY
+              });
+              return;
+            }
+          }
+          if (window.require) {
+            window.require(["itemContextMenu"], function (menu) {
+              menu.show({
+                item: item,
+                positionTo: card,
+                positionX: e.clientX,
+                positionY: e.clientY
+              });
+            });
+          }
+        } catch (err) {
+          console.error("CopperFox context menu failed:", err);
+        }
+      });
     });
 
     scopeEl.querySelectorAll(".cf-btn-fav").forEach(btn => {
