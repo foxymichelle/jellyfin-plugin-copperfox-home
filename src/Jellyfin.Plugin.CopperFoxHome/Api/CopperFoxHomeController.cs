@@ -25,8 +25,7 @@ public class CopperFoxHomeController : ControllerBase
     private readonly ILibraryManager _libraryManager;
     private readonly IUserManager _userManager;
     private readonly IUserDataManager _userDataManager;
-    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, (DateTime ExpiresAt, List<Guid> ItemIds)> _sliderCache = new();
-
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, (DateTime ExpiresAt, List<Guid> ItemIds)> _rowCache = new();
     public CopperFoxHomeController(
         ILibraryManager libraryManager,
         IUserManager userManager,
@@ -66,13 +65,13 @@ public class CopperFoxHomeController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(scope))
         {
-            _sliderCache.Clear();
+            _rowCache.Clear();
         }
         else
         {
-            foreach (var key in _sliderCache.Keys.Where(k => k.Contains($"|{scope}|", StringComparison.OrdinalIgnoreCase)).ToList())
+            foreach (var key in _rowCache.Keys.Where(k => k.Contains($"|{scope}|", StringComparison.OrdinalIgnoreCase)).ToList())
             {
-                _sliderCache.TryRemove(key, out _);
+                _rowCache.TryRemove(key, out _);
             }
         }
         return Ok(new { cleared = true });
@@ -458,8 +457,7 @@ public class CopperFoxHomeController : ControllerBase
                 : rowDef.Title;
 
             var cacheKey = $"{user.Id:N}|{rowDef.Scope}|{rowDef.TargetValue}|{rowDef.ExcludeTags}";
-            if (_sliderCache.TryGetValue(cacheKey, out var cached) && cached.ExpiresAt > DateTime.UtcNow && cached.ItemIds.Count > 0)
-            {
+            if (_rowCache.TryGetValue(cacheKey, out var cached) && cached.ExpiresAt > DateTime.UtcNow && cached.ItemIds.Count > 0)            {
                 var hydrated = cached.ItemIds
                     .Select(id => _libraryManager.GetItemById(id))
                     .Where(item => item != null)
@@ -522,8 +520,7 @@ public class CopperFoxHomeController : ControllerBase
                 if (selected.Count >= maxSliderItems) break;
             }
 
-            _sliderCache[cacheKey] = (DateTime.UtcNow.AddHours(24), selected.Select(x => x.Id).ToList());
-            hasMore = false;
+            _rowCache[cacheKey] = (DateTime.UtcNow.AddHours(24), selected.Select(x => x.Id).ToList());            hasMore = false;
             return selected;
         }
 
@@ -533,10 +530,6 @@ public class CopperFoxHomeController : ControllerBase
                 .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                 .ToList();
 
-            var excludeGenres = (rowDef.ExcludeTags ?? string.Empty)
-                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
             foreach (var g in includeGenres)
             {
                 usedGenres.Add(g);
@@ -545,6 +538,26 @@ public class CopperFoxHomeController : ControllerBase
             dynamicTitle = string.IsNullOrWhiteSpace(rowDef.Title)
                 ? string.Join(" & ", includeGenres)
                 : rowDef.Title;
+
+            var cacheKey = $"{user.Id:N}|{rowDef.Scope}|Genre|{rowDef.TargetValue}|{rowDef.ExcludeTags}|{rowDef.GroupIntoCollections}";
+            if (_rowCache.TryGetValue(cacheKey, out var cached) && cached.ExpiresAt > DateTime.UtcNow && cached.ItemIds.Count > 0)
+            {
+                var hydrated = cached.ItemIds
+                    .Select(id => _libraryManager.GetItemById(id))
+                    .Where(item => item != null)
+                    .Cast<BaseItem>()
+                    .ToList();
+
+                if (hydrated.Count > 0)
+                {
+                    hasMore = hydrated.Count > skip + pageSize;
+                    return hydrated.Skip(skip).Take(pageSize).ToList();
+                }
+            }
+
+            var excludeGenres = (rowDef.ExcludeTags ?? string.Empty)
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
             var genreQuery = new InternalItemsQuery(user)
             {
@@ -558,7 +571,10 @@ public class CopperFoxHomeController : ControllerBase
                 .Where(item => excludeGenres.Count == 0 ||
                                !(item.Genres ?? Array.Empty<string>()).Any(g => excludeGenres.Contains(g)));
 
-            return ApplyPostFilters(results, rowDef, user, discoverLibGuid, shuffle: true, skip, pageSize, out hasMore);
+            var allFiltered = ApplyPostFilters(results, rowDef, user, discoverLibGuid, shuffle: true, 0, 500, out _);
+            _rowCache[cacheKey] = (DateTime.UtcNow.AddHours(24), allFiltered.Select(x => x.Id).ToList());
+            hasMore = allFiltered.Count > skip + pageSize;
+            return allFiltered.Skip(skip).Take(pageSize).ToList();
         }
 
         if (rowDef.RowType.StartsWith("TopGenre", StringComparison.OrdinalIgnoreCase))
@@ -682,6 +698,22 @@ public class CopperFoxHomeController : ControllerBase
                 return new List<BaseItem>();
             }
 
+            var cacheKey = $"{user.Id:N}|{rowDef.Scope}|Tag|{rowDef.TargetValue}|{rowDef.ExcludeTags}|{rowDef.GroupIntoCollections}";
+            if (_rowCache.TryGetValue(cacheKey, out var cached) && cached.ExpiresAt > DateTime.UtcNow && cached.ItemIds.Count > 0)
+            {
+                var hydrated = cached.ItemIds
+                    .Select(id => _libraryManager.GetItemById(id))
+                    .Where(item => item != null)
+                    .Cast<BaseItem>()
+                    .ToList();
+
+                if (hydrated.Count > 0)
+                {
+                    hasMore = hydrated.Count > skip + pageSize;
+                    return hydrated.Skip(skip).Take(pageSize).ToList();
+                }
+            }
+
             var tagQuery = new InternalItemsQuery(user)
             {
                 Recursive = true,
@@ -689,7 +721,10 @@ public class CopperFoxHomeController : ControllerBase
                 Tags = tagList,
                 Limit = 250
             };
-            return ApplyPostFilters(_libraryManager.GetItemList(tagQuery), rowDef, user, discoverLibGuid, shuffle: true, skip, pageSize, out hasMore);
+            var allFiltered = ApplyPostFilters(_libraryManager.GetItemList(tagQuery), rowDef, user, discoverLibGuid, shuffle: true, 0, 500, out _);
+            _rowCache[cacheKey] = (DateTime.UtcNow.AddHours(24), allFiltered.Select(x => x.Id).ToList());
+            hasMore = allFiltered.Count > skip + pageSize;
+            return allFiltered.Skip(skip).Take(pageSize).ToList();
         }
 
         return new List<BaseItem>();

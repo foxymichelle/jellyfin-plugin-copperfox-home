@@ -31,7 +31,7 @@
                                 <span>Enable Top Hero Slider</span>
                             </label>
                             <button is="emby-button" type="button" id="btnRefreshSlider" class="raised button-alt" style="padding:6px 14px;font-size:13px;">
-                                <span>Refresh Slider Cache Now</span>
+                                <span>Refresh Owned Library Rows</span>
                             </button>
                         </div>
                         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;">
@@ -68,7 +68,7 @@
                                 <span>Discover Hero Slider (Locked Top of Discover — 16 Items, 24h Cache)</span>
                             </label>
                             <button is="emby-button" type="button" id="btnRefreshDiscSlider" class="raised button-alt" style="padding:6px 14px;font-size:13px;">
-                                <span>Refresh Discover Slider Now</span>
+                                <span>Refresh Discover Rows</span>
                             </button>
                         </div>
                         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;">
@@ -313,13 +313,13 @@
 
                 document.getElementById("btnRefreshSlider").onclick = function () {
                     ApiClient.ajax({ type: "POST", url: ApiClient.getUrl("CopperFoxHome/ClearSliderCache", { scope: "OwnedOnly" }) }).then(function () {
-                        Dashboard.alert("Top Hero Slider cache cleared. Reload Home to generate a fresh set.");
+                        Dashboard.alert("Owned Library row cache cleared. Reload Home to generate a fresh set.");
                     });
                 };
 
                 document.getElementById("btnRefreshDiscSlider").onclick = function () {
                     ApiClient.ajax({ type: "POST", url: ApiClient.getUrl("CopperFoxHome/ClearSliderCache", { scope: "DiscoverOnly" }) }).then(function () {
-                        Dashboard.alert("Discover Hero Slider cache cleared. Reload Home to generate a fresh set.");
+                        Dashboard.alert("Discover row cache cleared. Reload Home to generate a fresh set.");
                     });
                 };
 
