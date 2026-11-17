@@ -74,7 +74,7 @@
                         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;">
                             <div>
                                 <label style="display:block;font-size:12px;opacity:0.8;margin-bottom:4px;">Slider Title</label>
-                                <input type="text" id="txtDiscHeroTitle" placeholder="DISCOVER Featured" style="width:100%;box-sizing:border-box;padding:9px;font-size:14px;background:#181818;color:#fff;border:1px solid #444;border-radius:4px;" />
+                                <input type="text" id="txtDiscHeroTitle" placeholder="Discover Featured" style="width:100%;box-sizing:border-box;padding:9px;font-size:14px;background:#181818;color:#fff;border:1px solid #444;border-radius:4px;" />
                             </div>
                             <div>
                                 <label style="display:block;font-size:12px;opacity:0.8;margin-bottom:4px;">Include Tags (optional)</label>
@@ -365,7 +365,7 @@
                         document.getElementById("txtHeroExclude").value = hero.ExcludeTags || (legacySlider ? legacySlider.ExcludeTags : "");
 
                         document.getElementById("chkDiscHeroEnabled").checked = discHero.Enabled !== false;
-                        document.getElementById("txtDiscHeroTitle").value = discHero.Title || "DISCOVER Featured";
+                        document.getElementById("txtDiscHeroTitle").value = discHero.Title || "Discover Featured";
                         document.getElementById("txtDiscHeroInclude").value = discHero.IncludeTags || "";
                         document.getElementById("txtDiscHeroExclude").value = discHero.ExcludeTags || "";
 
@@ -398,7 +398,7 @@
                         };
                         config.DiscoverSlider = {
                             Enabled: document.getElementById("chkDiscHeroEnabled").checked,
-                            Title: document.getElementById("txtDiscHeroTitle").value.trim() || "DISCOVER Featured",
+                            Title: document.getElementById("txtDiscHeroTitle").value.trim() || "Discover Featured",
                             IncludeTags: document.getElementById("txtDiscHeroInclude").value.trim(),
                             ExcludeTags: document.getElementById("txtDiscHeroExclude").value.trim()
                         };

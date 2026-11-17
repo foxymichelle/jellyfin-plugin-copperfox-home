@@ -368,7 +368,8 @@
       if (!row.items || !row.items.length) continue;
 
       if (row.rowType === "SliderRow") {
-        const isDiscoverSlider = (row.scope === "DiscoverOnly") || (row.title || "").toUpperCase().startsWith("DISCOVER");
+        const sliderTitle = escapeHtml(row.title || "Featured");
+        const isDiscoverSlider = (row.scope === "DiscoverOnly") || (row.title || "").toLowerCase().startsWith("discover");
         if (isDiscoverSlider && !container.querySelector(".cf-discover-divider")) {
           const hr = document.createElement("hr");
           hr.className = "cf-discover-divider";
@@ -386,7 +387,7 @@
 
         section.innerHTML = `
           <div class="cf-slider-wrap" data-active="0" data-count="${row.items.length}">
-            <div class="cf-slider-header">${displayTitle}</div>
+            <div class="cf-slider-header">${sliderTitle}</div>
             ${slidesHtml}
             <button type="button" class="cf-slider-arrow cf-slider-prev" aria-label="Previous"><span class="material-icons chevron_left" style="font-size:30px;"></span></button>
             <button type="button" class="cf-slider-arrow cf-slider-next" aria-label="Next"><span class="material-icons chevron_right" style="font-size:30px;"></span></button>

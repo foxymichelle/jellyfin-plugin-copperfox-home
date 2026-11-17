@@ -125,7 +125,7 @@ public class CopperFoxHomeController : ControllerBase
         {
             unifiedRows.Add((3, new CustomHomeRowDefinition
             {
-                Title = !string.IsNullOrWhiteSpace(discHero.Title) ? discHero.Title : "DISCOVER Featured",
+                Title = !string.IsNullOrWhiteSpace(discHero.Title) ? discHero.Title : "Discover Featured",
                 RowType = "SliderRow",
                 Scope = "DiscoverOnly",
                 TargetValue = discHero.IncludeTags ?? string.Empty,
@@ -454,7 +454,7 @@ public class CopperFoxHomeController : ControllerBase
             var isDiscover = string.Equals(rowDef.Scope, "DiscoverOnly", StringComparison.OrdinalIgnoreCase);
             var maxSliderItems = isDiscover ? 16 : 10;
             dynamicTitle = string.IsNullOrWhiteSpace(rowDef.Title)
-                ? (isDiscover ? "DISCOVER Featured" : "Featured")
+                ? (isDiscover ? "Discover Featured" : "Featured")
                 : rowDef.Title;
 
             var cacheKey = $"{user.Id:N}|{rowDef.Scope}|{rowDef.TargetValue}|{rowDef.ExcludeTags}";

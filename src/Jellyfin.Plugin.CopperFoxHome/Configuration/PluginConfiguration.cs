@@ -13,7 +13,7 @@ public class PluginConfiguration : BasePluginConfiguration
 
     public HeroSliderConfig HeroSlider { get; set; } = new HeroSliderConfig();
 
-    public HeroSliderConfig DiscoverSlider { get; set; } = new HeroSliderConfig { Title = "DISCOVER Featured" };
+    public HeroSliderConfig DiscoverSlider { get; set; } = new HeroSliderConfig { Title = "Discover Featured" };
 
     public List<CustomHomeRowDefinition> Rows { get; set; } = new List<CustomHomeRowDefinition>();
 }
