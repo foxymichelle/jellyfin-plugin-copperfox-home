@@ -125,8 +125,8 @@
 
                     var arrowColHtml =
                         '<div style="display:flex;flex-direction:column;justify-content:center;gap:6px;">' +
-                            '<button type="button" class="btn-up" style="flex:1;min-height:30px;padding:6px 12px;background:#2a2a2a;color:#fff;border:1px solid #444;border-radius:4px;cursor:pointer;font-size:14px;">▲</button>' +
-                            '<button type="button" class="btn-down" style="flex:1;min-height:30px;padding:6px 12px;background:#2a2a2a;color:#fff;border:1px solid #444;border-radius:4px;cursor:pointer;font-size:14px;">▼</button>' +
+                            '<button type="button" class="btn-up" style="height:28px;padding:0 12px;background:#2a2a2a;color:#fff;border:1px solid #444;border-radius:4px;cursor:pointer;font-size:13px;line-height:26px;">▲</button>' +
+                            '<button type="button" class="btn-down" style="height:28px;padding:0 12px;background:#2a2a2a;color:#fff;border:1px solid #444;border-radius:4px;cursor:pointer;font-size:13px;line-height:26px;">▼</button>' +
                         '</div>';
 
                     var topHtml =
@@ -159,7 +159,7 @@
                     }
 
                     card.innerHTML = arrowColHtml + '<div style="flex:1;display:flex;flex-direction:column;gap:12px;">' + topHtml + bottomHtml + '</div>';
-                    
+
                     card.querySelector(".row-title").onchange = function (e) { listRef[index].Title = e.target.value; };
                     card.querySelector(".row-type").onchange = function (e) {
                         var nt = e.target.value;
@@ -298,12 +298,12 @@
 
                     Promise.all([
                         ApiClient.getPluginConfiguration(pluginId),
-                        ApiClient.getItems(userId, { Recursive: true, IncludeItemTypes: "BoxSet,Playlist", SortBy: "SortName" }),
-                        ApiClient.getUserViews({}, userId)
+                        ApiClient.getJSON(ApiClient.getUrl("Users/" + userId + "/Items", { Recursive: true, IncludeItemTypes: "BoxSet,Playlist", SortBy: "SortName", SortOrder: "Ascending" })),
+                        ApiClient.getJSON(ApiClient.getUrl("Users/" + userId + "/Views"))
                     ]).then(function (results) {
-                        var config = results.at(0) || {};
-                        var colResp = results.at(1) || {};
-                        var viewResp = results.at(2) || {};
+                        var config = results.shift() || {};
+                        var colResp = results.shift() || {};
+                        var viewResp = results.shift() || {};
                         availableCollections = (colResp.Items || []).map(function (i) { return { Id: i.Id, Name: i.Name }; });
                         availableViews = (viewResp.Items || []).map(function (v) { return { Id: v.Id, Name: v.Name }; });
 
