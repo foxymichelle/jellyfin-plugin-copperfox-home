@@ -5,7 +5,6 @@ A custom Jellyfin plugin that replaces Jellyfin's default home screen with custo
 There are 3 components that work together to accomplish this:
 
 ---
-
 ## 1. Index File on the Jellyfin Server
 
 To render the custom rows and styling on the Jellyfin web interface, a file is mounted and served from the Jellyfin `/config` directory (`/opt/stacks/jellyfin/config/`):
@@ -23,7 +22,7 @@ Requirement: `/opt/stacks/jellyfin/config/copperfox-home-index.html` must be map
      - /opt/stacks/jellyfin/config:/config
      - /opt/stacks/jellyfin/config/copperfox-home-index.html:/jellyfin/jellyfin-web/index.html:ro
    ```
-Because `custom-index.html` overrides Jellyfin's built-in `/jellyfin/jellyfin-web/index.html` via a read-only Docker volume mount, a major Jellyfin version upgrade (e.g., `10.12` to `10.13`) may change the hashed bundle filenames inside Jellyfin's default `index.html`.
+NOTE ABOUT FUTURE RELEASE CONFLICTS: Because `custom-index.html` overrides Jellyfin's built-in `/jellyfin/jellyfin-web/index.html` via a read-only Docker volume mount, a major Jellyfin version upgrade (e.g., `10.12` to `10.13`) may change the hashed bundle filenames inside Jellyfin's default `index.html`.
 
 If the Jellyfin web interface fails to load or shows a blank screen after a major update:
 1. Temporarily comment out the `copperfox-home-index.html` volume mount in `docker-compose.yml` and restart the container so Jellyfin exposes its fresh `index.html`:
@@ -42,6 +41,7 @@ If the Jellyfin web interface fails to load or shows a blank screen after a majo
    ```bash
    docker restart jellyfin
    ```
+
 
 ---
 
@@ -67,39 +67,50 @@ The C# server plugin exposes the CopperFoxHome Rows API endpoint and a dashboard
   * **Streaming Services:** Renders quick-launch service tiles (`Netflix`, `Hulu`, `Disney+`, `Max`, `Prime Video`, `Apple TV+`, `Paramount+`, `Peacock`) on the web client that open dedicated Discover only landing pages filtered by service tags.
 * **Per-Row Display & Pagination:** Choose between **Poster** (`2:3`) and **Thumb** (`16:9` with automatic Backdrop fallback) per row, loading 20 posters or 14 thumbs initially with inline **MORE** pagination.
 
+
 ---
 
 ## 3. Starfin Roku Fork (`starfin-roku` — `copperfox-tv` Branch)
 
 The Roku client consumes the `/CopperFoxHome/Rows` endpoint so row ordering, library isolation, slider banners, and card badges stay synchronized between desktop and TV.
 
-### Added & Modified Files
+### Added Files (Conflict-Free on Upstream Updates)
 * **`components/tasks/CustomHomeRowsTask/CustomHomeRowsTask.xml`**
   * Defines the SceneGraph `Task` node interface (`request` and `response` fields) used to fetch custom home rows asynchronously from the Jellyfin server.
 * **`components/tasks/CustomHomeRowsTask/CustomHomeRowsTask.bs`**
-  * Queries `/CopperFoxHome/Rows` with `userId`, `rowIndex`, and `skip` parameters for inline **MORE** pagination.
+  * Queries `/CopperFoxHome/Rows` using `stage` (`1`, `2`, `3`) for progressive startup loading, as well as `rowIndex` and `skip` for inline **MORE** pagination.
   * Skips web-only `StreamingServices` rows, routes episode items to their parent `Series` screen, formats permanent top-right badge text (`S1:E1` and `xS | yE`), tags `SliderRow` items, and appends `CF_LOAD_MORE` nodes when `hasMore` is true.
+
+### Modified Files
 * **`components/pages/HomePage/HomePage.bs`**
-  * Registers and runs `CustomHomeRowsTask`, stores custom row metadata (`m.homeState.customRowMeta`), and suppresses default Starfin shelves when CopperFox rows are active.
-  * Configures row layouts and high-resolution image URLs (`1920px` backdrops for `SliderRow`, `800px` thumbnails, and native posters), handles `BoxSet` collection navigation, and appends inline pagination results via `loadMoreCustomRow`.
+  * Launches parallel 3-stage `CustomHomeRowsTask` requests (`stage=1` Top Hero Slider, `stage=2` Owned Library Rows, `stage=3` Discover Rows), sorts arriving shelves by server `rowIndex`, and suppresses default Starfin home rows.
+  * Configures row layouts and Roku-optimized image URLs (`1280px` backdrops for `SliderRow` and `500px` thumbnails at `quality=85` to stay within GPU texture memory), handles `BoxSet` collection navigation, and appends inline pagination results via `loadMoreCustomRow`.
 * **`components/pages/HomePage/HomeShelf/HomeShelf.xml`**
   * Adds a 5-second repeating `Timer` (`cfSliderTimer`) to drive automatic slide transitions on `SliderRow` shelves.
 * **`components/pages/HomePage/HomeShelf/HomeShelf.bs`**
-  * Starts and stops `cfSliderTimer` automatically when rendering a `SliderRow`, advances slides every 5 seconds, and resets the countdown whenever the user scrolls left or right manually.
+  * Starts `cfSliderTimer` when a `SliderRow` is focused, pauses it automatically when scrolled off-screen (`onCfShelfFocusChanged`), resets the countdown on manual left/right scrolling, and wires up `focusExitDown` for vertical shelf navigation.
 * **`components/pages/Video/Cards/VideoMediaCard/VideoMediaCard.xml`**
   * Adds SceneGraph overlays for the permanent top-right badge (`cfBadgeGroup`), the inline **MORE** pagination tile (`cfMoreGroup`), and the full-width `1760x540` Hero Slider card (`cfSliderGroup` with focus border, backdrop poster, scrim, title, and overview).
 * **`components/pages/Video/Cards/VideoMediaCard/VideoMediaCard.bs`**
   * Binds `cfBadgeText` dynamically to card width, toggles the **MORE** card focus styling, and renders the full-width `SliderRow` backdrop banner with a crisp focus border.
 
+NOTE: This plugin will populate Jellyfin setting rows first, so each user needs to go to **User Settings > Home** and set all of the Home Sections to **None**.
 
-### Jellyfin Plugin Build (`Jellyfin.Plugin.CopperFoxHome`)
-1. Build the plugin DLL via GitHub Actions (updates mainifest)
-2. Restart Jellyfin to pick up the update, then restart again to activate.
-3. Set **User Settings > Home > Home Sections 1–7** to **None** so that they do not populate sections above the custom rows created through the plugin.
+---
+
+## Work Environment & Updates
+
+Both Github repos are available on Github Desktop and are edited using Visual Studio Code. 
+
+### Plugin Build Updates (`Jellyfin.Plugin.CopperFoxHome`)
+1. Pushing updates to GitHub triggers Github Actions, which will compile and, if it passes without errors, will update the mainifest.
+2. Restarting Jellyfin will pick up the update, then restart again to activate.
 
 ### Starfin Roku Package (`starfin-roku`)
-1. From the root of `/workspaces/starfin-roku` (on the `custom-home` branch), validate function headers, compile BrighterScript, and package the sideloadable zip:
+1. Using the VSC terminal (on the `copperfox-tv` branch), run
    ```bash
    npm run package
    ```
-2. Open your Roku's Developer Application Installer (`http://<ROKU_IP>`) in a browser and upload **`out/starfin.2.2.2.zip`**.
+to validate function headers, compile BrighterScript, and package the sideloadable zip.
+2. Open your Roku's Developer Application Installer (`http://<ROKU_IP>`) in a browser and upload **`Documents/Githum/starfin-roku/out/starfin.2.2.2.zip`**.
+3. When the orgininal starfin-roku releases an update, review what changes were made - in particular to 
