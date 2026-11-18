@@ -5,6 +5,7 @@ A custom Jellyfin plugin that replaces Jellyfin's default home screen with custo
 There are 3 components that work together to accomplish this:
 
 ---
+
 ## 1. Index File on the Jellyfin Server
 
 To render the custom rows and styling on the Jellyfin web interface, a file is mounted and served from the Jellyfin `/config` directory (`/opt/stacks/jellyfin/config/`):
@@ -51,19 +52,21 @@ The C# server plugin exposes the CopperFoxHome Rows API endpoint and a dashboard
 
 ### Key Features
 * **Section 1:** Top Hero Slider 
-  * A single top row for a quick initial load. This row can be toggled on and off, and the featured are chosen at random and saved for 24 hours. Include/exclude tags can be entered to define the search, and a Refresh button allows for a new selection of shows to be selected on demand.
+  * A single top row for a quick initial load. This row can be toggled on and off, and the featured are chosen at random and cached for 24 hours. Include/exclude tags can be entered to define the search, and a Refresh button allows for a new selection of shows to be selected on demand.
+  * UPDATE: Tag/Genre match rows are now also cached when the hero slider is cached to speed up page load and to keep the display consistent for users throughout a given day.
 * **Section 2:** Owned Library Rows where rows can be added, deleted, reordered, and set to show poster or thumb images.
-* **Section 3:** Discover Library Rows with the same features as section 2, but isolates search results to the SeerBridge discover folder only.
+* **Section 3:** Discover Library Rows with the same features as section 2 (minus My Media and Continue & Up Next), but isolates search results to the SeerBridge discover folder only. There is a locked slider in the first row position identical to the top hero slider.
 
 * **Custom Row Types:**
-  * **Slider Row:** Identical to the top hero slider to feature another selection of shows chosen at random on load per included/exclude tags, if included. This is particularly useful as a header to the discover section.
   * **My Media:** The standard library folders row with order and per-folder visibility toggles (set at the bottom of the settings page).
   * **Continue & Up Next:** Merges resumable movies and episodes with Next Up episodes, removing duplications so that only the latest active or next episode per show appears.
   * **Collections & Playlists:** Direct row rendering for any BoxSet or Playlist.
   * **Tag Match & Specific Genre:** Filter by included and/or excluded, comma-separated tags or specific genres.
     * Example: Create a Christmas row using include 'christmas', a 'More Holidays row using 'thanksgiving, winter, halloween' + exclude 'christmas' and a Discover More this Season using including all tags, but set to Discover folder only.
   * **Personalized Recommendations:** Automatic **User Top Genre #1–#3** and **Because You Watched** based on the current users viewing history.
-  * **Recently Added, Recently Added Movies & Recently added Shows:** A variety of ways to discplay recently added media with shows being featured here if there are any recently added series or episodes.
+    * NOTE: Through use, these tend to be redundant, espeically if the top 3 are Family, Animation, and Fantasy. It's better to use the Specific Genre to create groups, which each successive group excluding previous groups. These rows also slow down build as it takes more time to identify top genres/because you watched and search for matches.
+  * **Recently Added, Recently Added Movies & Recently added Shows:** A variety of ways to display recently added media. Shows will be featured here if there are any recently added series or episodes.
+    * NOTE: This section is not cached, so using this with a large discover folder could slow down load time.
   * **Streaming Services:** Renders quick-launch service tiles (`Netflix`, `Hulu`, `Disney+`, `Max`, `Prime Video`, `Apple TV+`, `Paramount+`, `Peacock`) on the web client that open dedicated Discover only landing pages filtered by service tags.
 * **Per-Row Display & Pagination:** Choose between **Poster** (`2:3`) and **Thumb** (`16:9` with automatic Backdrop fallback) per row, loading 20 posters or 14 thumbs initially with inline **MORE** pagination.
 
@@ -113,4 +116,5 @@ Both Github repos are available on Github Desktop and are edited using Visual St
    ```
 to validate function headers, compile BrighterScript, and package the sideloadable zip.
 2. Open your Roku's Developer Application Installer (`http://<ROKU_IP>`) in a browser and upload **`Documents/Githum/starfin-roku/out/starfin.2.2.2.zip`**.
-3. When the orgininal starfin-roku releases an update, review what changes were made - in particular to 
+3. When the orgininal starfin-roku releases an update, sync the main branch and review what changes were made - in particular to the modified files listed above.
+4. Make a backup branch based on the copperfox-tv branch, then sync the copperfox-tv branch with the main branch. Any new code that specifically conficts with line-item edits in my modified files will be flagged for review in the process. 
