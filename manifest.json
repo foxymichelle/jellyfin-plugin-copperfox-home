@@ -8,12 +8,12 @@
     "category": "General",
     "versions": [
       {
-        "version": "1.0.100.0",
-        "changelog": "Automated release v1.0.100.0",
+        "version": "1.0.101.0",
+        "changelog": "Automated release v1.0.101.0",
         "targetAbi": "10.12.0.0",
-        "sourceUrl": "https://github.com/foxymichelle/jellyfin-plugin-copperfox-home/releases/download/v1.0.100.0/copperfox-home_1.0.100.0.zip",
-        "checksum": "a8ca97f073933dccf9ebd5490b7fcacd",
-        "timestamp": "2026-11-18T13:56:56Z"
+        "sourceUrl": "https://github.com/foxymichelle/jellyfin-plugin-copperfox-home/releases/download/v1.0.101.0/copperfox-home_1.0.101.0.zip",
+        "checksum": "15ff7eab76474f015599048510137b90",
+        "timestamp": "2026-11-18T14:15:46Z"
       }
     ]
   }
