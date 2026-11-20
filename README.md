@@ -85,13 +85,78 @@ The Roku client consumes the `/CopperFoxHome/Rows` endpoint so row ordering, lib
   * Skips web-only `StreamingServices` rows, routes episode items to their parent `Series` screen, formats permanent top-right badge text (`S1:E1` and `xS | yE`), tags `SliderRow` items, and appends `CF_LOAD_MORE` nodes when `hasMore` is true.
 
 ### Modified Files
+* **`manifest`**
+  * Renames the channel title to **CopperFox TV** and bumps the build version to `3.1.1`.
+* **`source/main.bs`**
+  * Sets the initial global theme mode to `Theme.Mode.PureBlack`.
+* **`source/store/SettingsStore.bs`**
+  * Updates default preferences to `Theme.Mode.PureBlack`, enables `DisplayAccountBadge` (`"on"`), and sets the default `NextEpisodePromptSeconds` fallback interval to `"60"`.
+* **`components/controls/AccountBadge/AccountBadge.xml`**
+  * Makes the top-left user badge focusable (`focusable="true"`), exposes `focused`, `buttonSelected`, and `getContentWidth()`, and wraps visuals in `badgeRoot` for focus scaling.
+* **`components/controls/AccountBadge/AccountBadge.bs`**
+  * Scales the avatar and username by `1.12x` with a bright white border ring when focused, opens the account switcher on `OK`, and measures rendered text width via `getContentWidth()` for dynamic icon spacing.
+* **`components/pages/Header/Header.xml`**
+  * Hides the center glass navigation bar (`navGroup`), adds page-aware `activePage` and horizontal exit fields, and places icon-only **Home** (`topHomeGroup`) and **Search** (`topSearchGroup`) controls to the right of the user badge.
+* **`components/pages/Header/Header.bs`**
+  * Dynamically positions **Home** and **Search** icons with equal spacing after the username, toggles icon visibility by `activePage` (hiding Home on the home screen and Search on the search screen), scales focused icons by `1.15x`, bridges right-edge navigation into library sort controls, and returns focus down to the active page on `Back`.
+* **`components/pages/AccountPicker/AccountPickerContent/AccountPickerContent.xml`**
+  * Adds `navSelected` output and embeds a **Settings** navigation button (`pickerNavGroup`) between the user list and the sign-in button.
+* **`components/pages/AccountPicker/AccountPickerContent/AccountPickerContent.bs`**
+  * Wires vertical focus navigation between the account row, the embedded **Settings** button, and the sign-in button, emitting `navSelected = "settings"` when selected.
+* **`components/pages/AccountPicker/AccountPickerDialog/AccountPickerDialog.xml`**
+  * Exposes the `navSelected` field to forward picker navigation events to `MainScene`.
+* **`components/pages/AccountPicker/AccountPickerDialog/AccountPickerDialog.bs`**
+  * Forwards `navSelected` from `AccountPickerContent` and closes the dialog automatically.
+* **`components/MainScene/Helpers/Auth.bs`**
+  * Handles `overlay.navSelected` in `authHandleAccountPickerClosed` to launch the Settings overlay directly when selected from the account switcher.
+* **`components/MainScene/Helpers/Navigation.bs`**
+  * Syncs `m.header.activePage` (`"home"`, `"search"`, or `"other"`) across page transitions, triggers a full home refresh when clicking the **Home** icon, and bridges horizontal top-row focus between `Header` and `VideoLibrary`.
+* **`components/MainScene/Helpers/Collections.bs`**
+  * Syncs `m.header.activePage` when opening the Collections screen.
+* **`components/MainScene/Helpers/VideoLibrary.bs`**
+  * Wires `exitLeftToHeader` and `wrapRightToHeaderUser` observers on newly created library/collection views and syncs `m.header.activePage`.
 * **`components/pages/HomePage/HomePage.bs`**
-  * Launches parallel 3-stage `CustomHomeRowsTask` requests (`stage=1` Top Hero Slider, `stage=2` Owned Library Rows, `stage=3` Discover Rows), sorts arriving shelves by server `rowIndex`, and suppresses default Starfin home rows.
-  * Configures row layouts and Roku-optimized image URLs (`1280px` backdrops for `SliderRow` and `500px` thumbnails at `quality=85` to stay within GPU texture memory), handles `BoxSet` collection navigation, and appends inline pagination results via `loadMoreCustomRow`.
+  * Launches parallel 3-stage `CustomHomeRowsTask` requests (`stage=1` Top Hero Slider, `stage=2` Owned Library Rows, `stage=3` Discover Rows), sorts arriving shelves by server `rowIndex`, suppresses default Starfin home rows, skips full reload when returning via `Back`, handles `BoxSet` collection navigation, and appends inline pagination results via `loadMoreCustomRow`.
+* **`components/pages/HomePage/Helpers/HomeFocus.bs`**
+  * Saves `shelfIndex` alongside `itemId` in `captureHomeFocus()` and matches `shelfIndex` in `resolveHomeFocus()` so pressing `Back` returns to the exact shelf and card.
+* **`components/pages/HomePage/Helpers/HomeReconciliation.bs`**
+  * Captures active shelf and card focus inside `deactivate()` before hiding `HomePage`.
 * **`components/pages/HomePage/HomeShelf/HomeShelf.xml`**
   * Adds a 5-second repeating `Timer` (`cfSliderTimer`) to drive automatic slide transitions on `SliderRow` shelves.
 * **`components/pages/HomePage/HomeShelf/HomeShelf.bs`**
   * Starts `cfSliderTimer` when a `SliderRow` is focused, pauses it automatically when scrolled off-screen (`onCfShelfFocusChanged`), resets the countdown on manual left/right scrolling, and wires up `focusExitDown` for vertical shelf navigation.
+* **`components/pages/Search/Search.xml`**
+  * Hides and disables focus on the manual **Search** submit button (`searchButton`) for live query execution.
+* **`components/pages/Search/Search.bs`**
+  * Lowers `minimumQueryLength` to `2`, triggers live searches automatically on `keyboard.text` changes without stealing keyboard focus, cancels in-flight requests smoothly when typing continues, exits upward to the top header from row `0`, and renders 5 dedicated rows (**Movies**, **Shows**, **Episodes**, **Discover**, and **People**).
+* **`components/tasks/SearchTask/SearchTask.bs`**
+  * Requests item `Path` metadata, separates Discover library items (`/discover/`) into a dedicated `discover` payload array, and splits owned titles into `movies` and `shows`.
+* **`components/pages/Video/VideoLibrary/VideoLibrary.xml`**
+  * Moves `browseByButton` and `sortButton` onto the top header row (`y=36`), shifts `titleLabel` below the top bar (`y=118`), and exposes `exitLeftToHeader`, `wrapRightToHeaderUser`, and `focusSortControlsFromHeader()`.
+* **`components/pages/Video/VideoLibrary/VideoLibrary.bs`**
+  * Updates `m.chromeLayout.y` to `36` and adds `focusSortControlsFromHeader()` to receive horizontal focus from the top header bar.
+* **`components/pages/Video/VideoLibrary/Helpers/Browse.bs`**
+  * Disables library sort state persistence so Movies and TV Shows always load sorted by Title and Collections always load sorted by Release Date.
+* **`components/pages/Video/VideoLibrary/Helpers/Loading.bs`**
+  * Defaults `isCollectionContentRequest(request)` views to `LibraryBrowse.Option.ReleaseDate` (`Ascending`).
+* **`components/pages/Video/VideoLibrary/Helpers/Layout.bs`**
+  * Positions `browseByButton` and `sortButton` on the top header row to the right of the Home/Search icons and keeps `titleLabel` centered below at `y=118`.
+* **`components/pages/Video/VideoLibrary/Helpers/Navigation.bs`**
+  * Routes upward navigation from the first grid row straight to the top header bar and bridges left/right navigation across the top bar between `Header` and the sort controls.
+* **`components/pages/Video/VideoToolbar/VideoToolbar.xml`**
+  * Adds `isFavorite`, `favoriteSelected`, `unfavoriteSelected`, `focusFavoriteAction()`, and `favoriteButton` / `unfavoriteButton` (`DynamicButton` controls using custom light and focused heart icons).
+* **`components/pages/Video/VideoToolbar/VideoToolbar.bs`**
+  * Manages visibility, ordering (placing **Favorite / Unfavorite** ahead of **Mark as Watched / Unwatched**), click events, and focus retention for the Favorite heart toolbar buttons.
+* **`components/pages/Video/Movie/Movie.xml`**
+  * Embeds `<FavoriteItemTask id="favoriteItemTask" />` on the Movie details screen.
+* **`components/pages/Video/Movie/Movie.bs`**
+  * Initializes `m.mediaToolbar.isFavorite` from `item.UserData.IsFavorite` and executes `AddToFavorites` / `RemoveFromFavorites` via `FavoriteItemTask`.
+* **`components/pages/Video/TVShow/TVShow.xml`**
+  * Embeds `<FavoriteItemTask id="favoriteItemTask" />` on the TV Show details screen.
+* **`components/pages/Video/TVShow/TVShow.bs`**
+  * Initializes `m.favoriteItemTask` and observes `favoriteSelected` / `unfavoriteSelected` on `m.videoToolbar`.
+* **`components/pages/Video/TVShow/Helpers/WatchedState.bs`**
+  * Syncs `m.videoToolbar.isFavorite` from `series.UserData.IsFavorite` and executes `AddToFavorites` / `RemoveFromFavorites` via `FavoriteItemTask`.
 * **`components/pages/Video/Cards/VideoMediaCard/VideoMediaCard.xml`**
   * Adds SceneGraph overlays for the permanent top-right badge (`cfBadgeGroup`), the inline **MORE** pagination tile (`cfMoreGroup`), and the full-width `1760x540` Hero Slider card (`cfSliderGroup` with focus border, backdrop poster, scrim, title, and overview).
 * **`components/pages/Video/Cards/VideoMediaCard/VideoMediaCard.bs`**

@@ -326,8 +326,21 @@
                     Dashboard.showLoadingMsg();
                     var userId = ApiClient.getCurrentUserId();
 
-                    ApiClient.getJSON(ApiClient.getUrl("Users/" + userId + "/Views")).then(function (viewResp) {
-                        availableViews = (viewResp.Items || []).map(function (v) { return { Id: v.Id, Name: v.Name }; });
+                    Promise.all([
+                        ApiClient.getJSON(ApiClient.getUrl("Users/" + userId + "/Views")),
+                        ApiClient.getJSON(ApiClient.getUrl("Users/" + userId + "/Items", {
+                            Recursive: true,
+                            IncludeItemTypes: "ManualPlaylistsFolder"
+                        }))
+                    ]).then(function (results) {
+                        var viewItems = (results.Items || []);
+                        var playlistFolders = (results.Items || []);
+                        availableViews = viewItems.map(function (v) { return { Id: v.Id, Name: v.Name }; });
+                        playlistFolders.forEach(function (pf) {
+                            if (!availableViews.some(function (v) { return v.Id === pf.Id; })) {
+                                availableViews.push({ Id: pf.Id, Name: pf.Name || "Playlists" });
+                            }
+                        });
                         var libSelect = document.getElementById("selectDiscoverLibrary");
                         libSelect.innerHTML = '<option value="">-- None Selected --</option>';
                         availableViews.forEach(function (v) {
