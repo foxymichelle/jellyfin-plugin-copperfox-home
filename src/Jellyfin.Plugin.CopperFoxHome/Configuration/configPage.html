@@ -326,15 +326,15 @@
                     Dashboard.showLoadingMsg();
                     var userId = ApiClient.getCurrentUserId();
 
-                    Promise.all([
+                                        Promise.all([
                         ApiClient.getJSON(ApiClient.getUrl("Users/" + userId + "/Views")),
                         ApiClient.getJSON(ApiClient.getUrl("Users/" + userId + "/Items", {
                             Recursive: true,
                             IncludeItemTypes: "ManualPlaylistsFolder"
                         }))
                     ]).then(function (results) {
-                        var viewItems = (results.Items || []);
-                        var playlistFolders = (results.Items || []);
+                        var viewItems = (results[0] && results[0].Items) || [];
+                        var playlistFolders = (results[1] && results[1].Items) || [];
                         availableViews = viewItems.map(function (v) { return { Id: v.Id, Name: v.Name }; });
                         playlistFolders.forEach(function (pf) {
                             if (!availableViews.some(function (v) { return v.Id === pf.Id; })) {
