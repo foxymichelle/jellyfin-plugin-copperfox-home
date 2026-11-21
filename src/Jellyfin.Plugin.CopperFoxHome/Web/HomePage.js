@@ -19,18 +19,19 @@
       .cf-custom-section .card:hover .cardScalable,
       .itemsContainer .card:hover .cardScalable,
       .card:hover .cardScalable { transform: scale(1.04) !important; box-shadow: 0 6px 18px rgba(0,0,0,0.55) !important; }
-      .cardOverlayContainer { background: rgba(0,0,0,0.52) !important; border-radius: 6px !important; }
-      .cardOverlayFab-primary { background-color: rgba(255,255,255,0.8) !important; color: #000 !important; box-shadow: none !important; }
-      .cardOverlayFab-primary .material-icons { color: #000 !important; }
-      .cf-hover-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.52); opacity: 0; transition: opacity 0.18s ease; display: flex; align-items: flex-end; justify-content: space-between; padding: 10px 12px 14px 12px; pointer-events: none; z-index: 2; }
+      .cardOverlayContainer { background: transparent !important; border-radius: 6px !important; }
+      .cardOverlayFab-primary { background-color: rgba(0,0,0,0.72) !important; color: #fff !important; box-shadow: none !important; }
+      .cardOverlayFab-primary .material-icons { color: #fff !important; }
+      .cf-hover-overlay { position: absolute; inset: 0; background: transparent !important; opacity: 0; transition: opacity 0.18s ease; display: flex; align-items: flex-end; justify-content: space-between; padding: 10px 12px 14px 12px; pointer-events: none; z-index: 2; }
       .cf-custom-section .card:hover .cf-hover-overlay { opacity: 1; }
       .cf-badge-tl { position: absolute; top: 8px; left: 8px; background: rgba(0,0,0,0.8); color: #fff; font-size: 11px; padding: 3px 7px; border-radius: 4px; opacity: 0; transition: opacity 0.18s ease; pointer-events: none; z-index: 3; }
       .cf-custom-section .card:hover .cf-badge-tl { opacity: 1; }
       .cf-badge-tr { position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.8); color: #fff; font-size: 11px; padding: 3px 7px; border-radius: 4px; pointer-events: none; z-index: 3; }
       .cf-progress-track { position: absolute; bottom: 0; left: 0; right: 0; height: 5px; background: rgba(255,255,255,0.5); z-index: 4; pointer-events: none; }
       .cf-progress-fill { height: 100%; background: #a85c32; }
-      .cf-play-circle { width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.8); display: flex; align-items: center; justify-content: center; color: #000; }
-      .cf-hover-btn { pointer-events: auto; position: relative; z-index: 5; background: none; border: none; color: #fff; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; opacity: 0.9; transition: opacity 0.15s, transform 0.15s; }
+      .cf-hover-btn { pointer-events: auto; position: relative; z-index: 5; background: none; border: none; color: #fff; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; opacity: 0.9; transition: opacity 0.15s, transform 0.15s, background-color 0.15s; }
+      .cf-btn-play { width: 46px; height: 46px; border-radius: 50%; background: rgba(0,0,0,0.65); color: #fff; padding: 0; }
+      .cf-btn-play:hover { background: rgba(0,0,0,0.85); }
       .cf-hover-btn:hover { opacity: 1; transform: scale(1.15); }
       .cf-hover-btn.active-played { color: #52b54b; opacity: 1; }
       .cf-hover-btn.active-fav { color: #ff4b6e; opacity: 1; }
@@ -912,8 +913,12 @@
   });
   menuObserver.observe(document.body, { childList: true });
 
-  document.addEventListener("viewshow", () => setTimeout(loadOnce, 350));
-  window.addEventListener("hashchange", () => setTimeout(loadOnce, 350));
+  const isHomeRoute = () => {
+    const h = window.location.hash || "";
+    return h === "" || h === "#" || h.startsWith("#/home");
+  };
+  document.addEventListener("viewshow", () => { if (isHomeRoute()) setTimeout(loadOnce, 350); });
+  window.addEventListener("hashchange", () => { if (isHomeRoute()) setTimeout(loadOnce, 350); });
   setInterval(() => {
     const s = document.getElementById("cfHomeStyles");
     if (s && document.head.lastElementChild !== s) document.head.appendChild(s);
