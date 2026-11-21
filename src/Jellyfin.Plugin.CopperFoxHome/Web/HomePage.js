@@ -30,7 +30,7 @@
       .cf-progress-track { position: absolute; bottom: 0; left: 0; right: 0; height: 5px; background: rgba(255,255,255,0.5); z-index: 4; pointer-events: none; }
       .cf-progress-fill { height: 100%; background: #a85c32; }
       .cf-play-circle { width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.8); display: flex; align-items: center; justify-content: center; color: #000; }
-      .cf-hover-btn { pointer-events: auto; background: none; border: none; color: #fff; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; opacity: 0.9; transition: opacity 0.15s, transform 0.15s; }
+      .cf-hover-btn { pointer-events: auto; position: relative; z-index: 5; background: none; border: none; color: #fff; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; opacity: 0.9; transition: opacity 0.15s, transform 0.15s; }
       .cf-hover-btn:hover { opacity: 1; transform: scale(1.15); }
       .cf-hover-btn.active-played { color: #52b54b; opacity: 1; }
       .cf-hover-btn.active-fav { color: #ff4b6e; opacity: 1; }
@@ -219,62 +219,69 @@
   }
 
   function bindCardInteractions(scopeEl) {
-    scopeEl.querySelectorAll(".cf-btn-played").forEach(btn => {
-      if (btn.dataset.bound) return;
-      btn.dataset.bound = "1";
-      btn.onclick = async function (e) {
-        e.preventDefault();
-        e.stopPropagation();
-        const id = btn.getAttribute("data-id");
-        const nextState = btn.getAttribute("data-played") !== "true";
-        const uid = ApiClient.getCurrentUserId();
-        try {
-          await ApiClient.ajax({
-            type: nextState ? "POST" : "DELETE",
-            url: ApiClient.getUrl(`Users/${uid}/PlayedItems/${id}`)
-          });
-          btn.setAttribute("data-played", String(nextState));
-          btn.classList.toggle("active-played", nextState);
-        } catch (err) {
-          console.error("Toggle watched failed:", err);
-        }
-      };
-    });
     scopeEl.querySelectorAll(".cf-item-card").forEach(card => {
       if (card.dataset.cfNavBound) return;
       card.dataset.cfNavBound = "1";
-      card.addEventListener("click", function (e) {
-        if (e.target.closest(".cf-btn-play")) {
-          e.stopPropagation();
-          return;
-        }
-        if (e.target.closest(".cf-btn-played, .cf-btn-fav")) {
+      card.addEventListener("click", async function (e) {
+        const playBtn = e.target.closest(".cf-btn-play");
+        if (playBtn) {
           e.preventDefault();
           e.stopPropagation();
+          const playId = card.getAttribute("data-item-id") || card.getAttribute("data-id");
+          const srvId = card.getAttribute("data-serverid") || ApiClient.serverId();
+          try {
+            if (window.playbackManager && typeof window.playbackManager.play === "function") {
+              window.playbackManager.play({ ids: [playId], serverId: srvId });
+            } else if (window.Emby && Emby.importModule) {
+              const pm = await Emby.importModule("./components/playback/playbackmanager");
+              const manager = pm.default || pm.playbackManager || pm;
+              manager.play({ ids: [playId], serverId: srvId });
+            }
+          } catch (err) {
+            console.error("Play failed:", err);
+          }
+          return;
+        }
+
+        const playedBtn = e.target.closest(".cf-btn-played");
+        if (playedBtn) {
+          e.preventDefault();
+          e.stopPropagation();
+          const itemId = playedBtn.getAttribute("data-id");
+          const nextPlayed = playedBtn.getAttribute("data-played") !== "true";
+          const uid = ApiClient.getCurrentUserId();
+          try {
+            await ApiClient.ajax({
+              type: nextPlayed ? "POST" : "DELETE",
+              url: ApiClient.getUrl(`Users/${uid}/PlayedItems/${itemId}`)
+            });
+            playedBtn.setAttribute("data-played", String(nextPlayed));
+            playedBtn.classList.toggle("active-played", nextPlayed);
+          } catch (err) {
+            console.error("Toggle watched failed:", err);
+          }
+          return;
+        }
+
+        const favBtn = e.target.closest(".cf-btn-fav");
+        if (favBtn) {
+          e.preventDefault();
+          e.stopPropagation();
+          const itemId = favBtn.getAttribute("data-id");
+          const nextFav = favBtn.getAttribute("data-fav") !== "true";
+          const uid = ApiClient.getCurrentUserId();
+          try {
+            await ApiClient.ajax({
+              type: nextFav ? "POST" : "DELETE",
+              url: ApiClient.getUrl(`Users/${uid}/FavoriteItems/${itemId}`)
+            });
+            favBtn.setAttribute("data-fav", String(nextFav));
+            favBtn.classList.toggle("active-fav", nextFav);
+          } catch (err) {
+            console.error("Toggle favorite failed:", err);
+          }
         }
       }, true);
-    });
-
-    scopeEl.querySelectorAll(".cf-btn-fav").forEach(btn => {
-      if (btn.dataset.bound) return;
-      btn.dataset.bound = "1";
-      btn.onclick = async function (e) {
-        e.preventDefault();
-        e.stopPropagation();
-        const id = btn.getAttribute("data-id");
-        const nextState = btn.getAttribute("data-fav") !== "true";
-        const uid = ApiClient.getCurrentUserId();
-        try {
-          await ApiClient.ajax({
-            type: nextState ? "POST" : "DELETE",
-            url: ApiClient.getUrl(`Users/${uid}/FavoriteItems/${id}`)
-          });
-          btn.setAttribute("data-fav", String(nextState));
-          btn.classList.toggle("active-fav", nextState);
-        } catch (err) {
-          console.error("Toggle favorite failed:", err);
-        }
-      };
     });
 
     scopeEl.querySelectorAll(".cf-item-card").forEach(card => {
