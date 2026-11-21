@@ -173,7 +173,13 @@
            <span class="material-icons check" style="font-size:22px;"></span>
          </button>`;
 
-    const playBtnHtml = `<span style="width:40px;"></span>`;
+    const serverId = ApiClient.serverId();
+    const playTargetId = item.Id;
+    const playBtnHtml = isDiscover
+      ? `<span style="width:40px;"></span>`
+      : `<button type="button" is="paper-icon-button-light" class="cf-hover-btn cf-btn-play itemAction paper-icon-button-light" data-action="play" data-id="${playTargetId}" data-serverid="${serverId}" data-type="${item.Type || ""}" data-isfolder="${isFolder}" data-mediatype="${item.MediaType || "Video"}" title="Play">
+           <span class="material-icons play_arrow" style="font-size:28px;"></span>
+         </button>`;
 
     const overlayHtml = isFolder ? "" : `
       <div class="cf-hover-overlay">
@@ -185,11 +191,11 @@
       </div>`;
 
     return `
-      <div class="card ${isThumb ? "backdropCard" : "portraitCard"} card-hoverable card-withuserdata cf-item-card" data-id="${navId}" data-item-id="${item.Id}" style="width:${cardWidth};min-width:${cardWidth};flex:0 0 auto;">
+      <div class="card ${isThumb ? "backdropCard" : "portraitCard"} card-hoverable card-withuserdata cf-item-card" data-index="0" data-isfolder="${isFolder}" data-serverid="${serverId}" data-id="${playTargetId}" data-nav-id="${navId}" data-item-id="${item.Id}" data-type="${item.Type || ""}" data-mediatype="${item.MediaType || "Video"}" data-context="home" style="width:${cardWidth};min-width:${cardWidth};flex:0 0 auto;">
         <div class="cardBox">
           <div class="cardScalable">
             <div class="cardPadder ${padderClass}"></div>
-            <a href="${href}" class="cardImageContainer coveredImage cardContent itemAction" style="background-image:url('${imgUrl}');"></a>
+            <a href="${href}" class="cardImageContainer coveredImage cardContent itemAction" data-action="link" style="background-image:url('${imgUrl}');"></a>
             ${tlBadgeHtml}
             ${trBadgeHtml}
             ${progressBarHtml}
@@ -233,6 +239,20 @@
       if (card.dataset.cfNavBound) return;
       card.dataset.cfNavBound = "1";
       card.addEventListener("click", function (e) {
+        const playBtn = e.target.closest(".cf-btn-play");
+        if (playBtn) {
+          e.preventDefault();
+          e.stopPropagation();
+          const playId = playBtn.getAttribute("data-id") || card.getAttribute("data-item-id");
+          const srvId = playBtn.getAttribute("data-serverid") || ApiClient.serverId();
+          if (window.Emby && Emby.importModule) {
+            Emby.importModule("./components/playback/playbackmanager").then(pm => {
+              const manager = pm.default || pm;
+              manager.play({ ids: [playId], serverId: srvId });
+            });
+          }
+          return;
+        }
         if (e.target.closest(".cf-btn-played, .cf-btn-fav")) {
           e.preventDefault();
           e.stopPropagation();
