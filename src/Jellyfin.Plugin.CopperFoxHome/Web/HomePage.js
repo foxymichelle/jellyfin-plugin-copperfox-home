@@ -177,12 +177,12 @@
     const playTargetId = item.Id;
     const playBtnHtml = isDiscover
       ? `<span style="width:40px;"></span>`
-      : `<button type="button" is="paper-icon-button-light" class="cf-hover-btn cf-btn-play itemAction paper-icon-button-light" data-action="play" data-id="${playTargetId}" data-serverid="${serverId}" data-type="${item.Type || ""}" data-isfolder="${isFolder}" data-mediatype="${item.MediaType || "Video"}" title="Play">
-           <span class="material-icons play_arrow" style="font-size:28px;"></span>
+      : `<button type="button" is="paper-icon-button-light" class="cf-hover-btn cf-btn-play cardOverlayButton cardOverlayButton-hover itemAction paper-icon-button-light" data-action="resume" title="Play">
+           <span class="material-icons cardOverlayButtonIcon cardOverlayButtonIcon-hover play_arrow" style="font-size:28px;" aria-hidden="true"></span>
          </button>`;
 
     const overlayHtml = isFolder ? "" : `
-      <div class="cf-hover-overlay">
+      <div class="cf-hover-overlay cardOverlayContainer itemAction" data-action="link">
         ${watchedBtnHtml}
         ${playBtnHtml}
         <button type="button" class="cf-hover-btn cf-btn-fav ${isFav ? "active-fav" : ""}" data-id="${item.Id}" data-fav="${isFav}" title="Favorite">
@@ -190,12 +190,17 @@
         </button>
       </div>`;
 
+    const fullHref = href.indexOf("serverId=") === -1 ? `${href}${href.indexOf("?") === -1 ? "?" : "&"}serverId=${serverId}` : href;
+    const itemNameEscaped = (item.Name || "").replace(/"/g, "&quot;");
+    const pathAttr = item.Path ? ` data-path="${String(item.Path).replace(/"/g, "&quot;")}"` : "";
+    const prefixAttr = item.Name ? ` data-prefix="${String(item.Name).substring(0, 3).toUpperCase().replace(/"/g, "&quot;")}"` : "";
+
     return `
-      <div class="card ${isThumb ? "backdropCard" : "portraitCard"} card-hoverable card-withuserdata cf-item-card" data-index="0" data-isfolder="${isFolder}" data-serverid="${serverId}" data-id="${playTargetId}" data-nav-id="${navId}" data-item-id="${item.Id}" data-type="${item.Type || ""}" data-mediatype="${item.MediaType || "Video"}" data-context="home" style="width:${cardWidth};min-width:${cardWidth};flex:0 0 auto;">
+      <div class="card ${isThumb ? "backdropCard" : "portraitCard"} card-hoverable card-withuserdata cf-item-card" data-index="0" data-isfolder="${isFolder}" data-serverid="${serverId}" data-id="${playTargetId}" data-item-id="${item.Id}" data-type="${item.Type || ""}" data-mediatype="${item.MediaType || "Video"}"${pathAttr} data-context="home"${prefixAttr} style="width:${cardWidth};min-width:${cardWidth};flex:0 0 auto;">
         <div class="cardBox">
           <div class="cardScalable">
             <div class="cardPadder ${padderClass}"></div>
-            <a href="${href}" class="cardImageContainer coveredImage cardContent itemAction" data-action="link" style="background-image:url('${imgUrl}');"></a>
+            <a href="${fullHref}" aria-label="${itemNameEscaped}" class="cardImageContainer coveredImage cardContent itemAction" data-action="link" style="background-image:url('${imgUrl}');"></a>
             ${tlBadgeHtml}
             ${trBadgeHtml}
             ${progressBarHtml}
@@ -239,18 +244,8 @@
       if (card.dataset.cfNavBound) return;
       card.dataset.cfNavBound = "1";
       card.addEventListener("click", function (e) {
-        const playBtn = e.target.closest(".cf-btn-play");
-        if (playBtn) {
-          e.preventDefault();
+        if (e.target.closest(".cf-btn-play")) {
           e.stopPropagation();
-          const playId = playBtn.getAttribute("data-id") || card.getAttribute("data-item-id");
-          const srvId = playBtn.getAttribute("data-serverid") || ApiClient.serverId();
-          if (window.Emby && Emby.importModule) {
-            Emby.importModule("./components/playback/playbackmanager").then(pm => {
-              const manager = pm.default || pm;
-              manager.play({ ids: [playId], serverId: srvId });
-            });
-          }
           return;
         }
         if (e.target.closest(".cf-btn-played, .cf-btn-fav")) {
