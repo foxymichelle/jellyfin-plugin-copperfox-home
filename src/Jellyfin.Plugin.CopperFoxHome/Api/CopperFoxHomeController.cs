@@ -226,6 +226,7 @@ public class CopperFoxHomeController : ControllerBase
                 {
                     Id = item.Id.ToString("N"),
                     Name = item.Name,
+                    Path = item.Path,
                     Type = kind,
                     CollectionType = (item as ICollectionFolder)?.CollectionType?.ToString(),
                     SeriesId = seriesId,
