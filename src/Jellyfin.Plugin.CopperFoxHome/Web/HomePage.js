@@ -231,19 +231,43 @@
           playBtn.blur();
           const playId = playBtn.getAttribute("data-id") || card.getAttribute("data-item-id");
           const srvId = playBtn.getAttribute("data-serverid") || ApiClient.serverId();
-          try {
-            const pm = window.playbackManager
-              ? window.playbackManager
-              : await Emby.importModule("./components/playback/playbackmanager");
-            const manager = pm.default || pm.playbackManager || pm;
-            if (manager && typeof manager.play === "function") {
-              manager.play({ ids: [playId], serverId: srvId });
-            } else {
-              console.warn("playbackManager export keys:", Object.keys(pm || {}));
-            }
-          } catch (err) {
-            console.error("Play failed:", err);
+          const itemType = card.getAttribute("data-type") || "Movie";
+          const mediaType = card.getAttribute("data-mediatype") || "Video";
+
+          if (window.playbackManager && typeof window.playbackManager.play === "function") {
+            window.playbackManager.play({ ids: [playId], serverId: srvId });
+            return;
           }
+
+          // Delegate through Jellyfin's native itemsContainer card action listener
+          let nativeContainer = document.querySelector(".itemsContainer");
+          let tempContainer = null;
+          if (!nativeContainer) {
+            tempContainer = document.createElement("div");
+            tempContainer.className = "itemsContainer";
+            tempContainer.style.display = "none";
+            document.body.appendChild(tempContainer);
+            nativeContainer = tempContainer;
+          }
+
+          const proxyCard = document.createElement("div");
+          proxyCard.className = "card";
+          proxyCard.setAttribute("data-id", playId);
+          proxyCard.setAttribute("data-serverid", srvId);
+          proxyCard.setAttribute("data-type", itemType);
+          proxyCard.setAttribute("data-mediatype", mediaType);
+          proxyCard.setAttribute("data-isfolder", "false");
+
+          const proxyBtn = document.createElement("button");
+          proxyBtn.type = "button";
+          proxyBtn.className = "itemAction";
+          proxyBtn.setAttribute("data-action", "resume");
+          proxyCard.appendChild(proxyBtn);
+          nativeContainer.appendChild(proxyCard);
+
+          proxyBtn.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
+          proxyCard.remove();
+          if (tempContainer) tempContainer.remove();
           return;
         }
 
