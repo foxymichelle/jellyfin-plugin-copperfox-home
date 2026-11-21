@@ -223,13 +223,14 @@
       if (card.dataset.cfNavBound) return;
       card.dataset.cfNavBound = "1";
       card.addEventListener("click", async function (e) {
-        const playBtn = e.target.closest(".cf-btn-play");
+        
+      const playBtn = e.target.closest(".cf-btn-play");
         if (playBtn) {
           e.preventDefault();
           e.stopPropagation();
           playBtn.blur();
           const playId = playBtn.getAttribute("data-id") || card.getAttribute("data-item-id");
-          const srvId = card.getAttribute("data-serverid") || ApiClient.serverId();
+          const srvId = playBtn.getAttribute("data-serverid") || ApiClient.serverId();
           try {
             const pm = window.playbackManager
               ? window.playbackManager
