@@ -177,8 +177,8 @@
     const playTargetId = item.Id;
     const playBtnHtml = isDiscover
       ? `<span style="width:40px;"></span>`
-      : `<button type="button" is="paper-icon-button-light" class="cf-hover-btn cf-btn-play cardOverlayButton cardOverlayButton-hover itemAction paper-icon-button-light" data-action="resume" title="Play">
-           <span class="material-icons cardOverlayButtonIcon cardOverlayButtonIcon-hover play_arrow" style="font-size:28px;" aria-hidden="true"></span>
+      : `<button type="button" class="cf-hover-btn cf-btn-play" data-id="${playTargetId}" title="Play">
+           <span class="material-icons play_arrow" style="font-size:28px;"></span>
          </button>`;
 
     const overlayHtml = isFolder ? "" : `
@@ -227,15 +227,18 @@
         if (playBtn) {
           e.preventDefault();
           e.stopPropagation();
-          const playId = card.getAttribute("data-item-id") || card.getAttribute("data-id");
+          playBtn.blur();
+          const playId = playBtn.getAttribute("data-id") || card.getAttribute("data-item-id");
           const srvId = card.getAttribute("data-serverid") || ApiClient.serverId();
           try {
-            if (window.playbackManager && typeof window.playbackManager.play === "function") {
-              window.playbackManager.play({ ids: [playId], serverId: srvId });
-            } else if (window.Emby && Emby.importModule) {
-              const pm = await Emby.importModule("./components/playback/playbackmanager");
-              const manager = pm.default || pm.playbackManager || pm;
+            const pm = window.playbackManager
+              ? window.playbackManager
+              : await Emby.importModule("./components/playback/playbackmanager");
+            const manager = pm.default || pm.playbackManager || pm;
+            if (manager && typeof manager.play === "function") {
               manager.play({ ids: [playId], serverId: srvId });
+            } else {
+              console.warn("playbackManager export keys:", Object.keys(pm || {}));
             }
           } catch (err) {
             console.error("Play failed:", err);
@@ -247,6 +250,7 @@
         if (playedBtn) {
           e.preventDefault();
           e.stopPropagation();
+          playedBtn.blur();
           const itemId = playedBtn.getAttribute("data-id");
           const nextPlayed = playedBtn.getAttribute("data-played") !== "true";
           const uid = ApiClient.getCurrentUserId();
@@ -267,6 +271,7 @@
         if (favBtn) {
           e.preventDefault();
           e.stopPropagation();
+          favBtn.blur();
           const itemId = favBtn.getAttribute("data-id");
           const nextFav = favBtn.getAttribute("data-fav") !== "true";
           const uid = ApiClient.getCurrentUserId();
