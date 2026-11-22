@@ -21,7 +21,7 @@
       color: inherit !important;
     }
 
-    .itemsContainer .card:not(.episodeCard) .cardText {
+    .itemsContainer .card:not(.episodeCard):not(.personCard) .cardText {
       display: none !important;
     }
 
@@ -44,24 +44,9 @@
     /* ==========================================================================
        2. HOVER OVERLAY & ACTION BUTTONS (WATCHED, PLAY, FAVORITE)
        ========================================================================== */
-    .cardOverlayContainer {
-      background: transparent !important;
-      border-radius: 6px !important;
-    }
-
-    .cardOverlayFab-primary {
-      background-color: rgba(0, 0, 0, 0.72) !important;
-      color: #fff !important;
-      box-shadow: none !important;
-    }
-
-    .cardOverlayFab-primary .material-icons {
-      color: #fff !important;
-    }
-
     .cf-hover-overlay {
-      position: absolute;
-      inset: 0;
+      position: absolute !important;
+      inset: 0 !important;
       background: linear-gradient(
         to top,
         rgba(0, 0, 0, 0.72) 0%,
@@ -71,66 +56,82 @@
       border-radius: 6px !important;
       opacity: 0;
       transition: opacity 0.18s ease;
-      display: flex;
-      align-items: flex-end;
-      justify-content: space-between;
-      padding: 10px 12px 14px 12px;
-      pointer-events: none;
-      z-index: 2;
+      display: flex !important;
+      align-items: flex-end !important;
+      justify-content: space-between !important;
+      padding: 10px 12px 14px 12px !important;
+      pointer-events: none !important;
+      z-index: 10 !important;
     }
 
     .cf-custom-section .card:hover .cf-hover-overlay {
-      opacity: 1;
+      opacity: 1 !important;
     }
 
     .cf-hover-btn {
-      pointer-events: auto;
-      position: relative;
-      z-index: 5;
-      background: none;
+      pointer-events: auto !important;
+      position: relative !important;
+      z-index: 20 !important;
+      background: transparent !important;
       border: none;
-      color: #fff;
-      cursor: pointer;
-      padding: 4px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      opacity: 0.9;
-      transition: opacity 0.15s, transform 0.15s, background-color 0.15s;
+      color: rgba(255, 255, 255, 0.85) !important;
+      cursor: pointer !important;
+      padding: 4px !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      opacity: 0.92 !important;
+      transition: opacity 0.15s ease, transform 0.15s ease, background-color 0.15s ease !important;
     }
 
     .cf-hover-btn:hover {
-      opacity: 1;
-      transform: scale(1.15);
+      opacity: 1 !important;
+      color: #ffffff !important;
+      transform: scale(1.18) !important;
     }
 
+    /* Bottom-Center Play Button */
     .cf-btn-play {
-      width: 48px;
-      height: 48px;
-      border-radius: 50%;
-      background: rgba(0, 0, 0, 0.7);
-      border: 1px solid rgba(255, 255, 255, 0.7);
-      color: #fff;
-      padding: 0;
+      width: 48px !important;
+      height: 48px !important;
+      border-radius: 50% !important;
+      background-color: rgba(0, 0, 0, 0.7) !important;
+      border: 1px solid rgba(255, 255, 255, 0.7) !important;
+      color: #fff !important;
+      padding: 0 !important;
+      box-shadow: none !important;
     }
 
     .cf-btn-play:hover {
-      background: rgba(0, 0, 0, 0.85);
+      background-color: rgba(0, 0, 0, 0.95) !important;
+      border: 1px solid rgba(255, 255, 255, 0.9) !important;
+      transform: scale(1.12) !important;
     }
 
-    /* Watched Active State */
-    .cf-hover-btn.active-played {
-      color: #52b54b;
-      opacity: 1;
+    .cf-btn-play .material-icons {
+      color: #fff !important;
+      font-size: 32px !important;
     }
 
-    /* Favorited Active State (with White Outline) */
-    .cf-hover-btn.active-fav {
-      color: #ff4b6e;
-      -webkit-text-stroke: 1.5px #ffffff;
-      paint-order: stroke fill;
-      text-shadow: 0 2px 5px rgba(0, 0, 0, 0.9);
-      opacity: 1;
+    /* Watched Button States */
+    .cf-btn-played .material-icons {
+      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9) !important;
+    }
+
+    .cf-btn-played.active-played .material-icons {
+      color: #f5a289 !important;
+      -webkit-text-stroke: 0.5px #f5a289 !important;
+    }
+
+    /* Favorite Button States */
+    .cf-btn-fav .material-icons {
+      -webkit-text-stroke: 1px #ffffff !important;
+    }
+
+    .cf-btn-fav.active-fav .material-icons {
+      color: #b5583c !important;
+      font-size: 26px !important;
+      -webkit-text-stroke: 1px #ffffff !important;
     }
 
     /* ==========================================================================
@@ -140,9 +141,10 @@
       position: absolute;
       top: 8px;
       left: 8px;
-      background: rgba(0, 0, 0, 0.8);
+      background: rgba(0, 0, 0, 0.7);
       color: #fff;
-      font-size: 11px;
+      font-size: 13px;
+      font-weight: 500;
       padding: 3px 7px;
       border-radius: 4px;
       opacity: 0;
@@ -159,10 +161,11 @@
       position: absolute;
       top: 8px;
       right: 8px;
-      background: rgba(0, 0, 0, 0.8);
+      background: rgba(0, 0, 0, 0.7);
       color: #fff;
-      font-size: 11px;
-      padding: 3px 7px;
+      font-size: 13px;
+      font-weight: 500;
+      padding: 3px 5px;
       border-radius: 4px;
       pointer-events: none;
       z-index: 3;
@@ -359,9 +362,9 @@
       font-size: 26px;
       font-weight: 700;
       text-shadow: 0 2px 10px rgba(0, 0, 0, 0.9);
-    }
+}
 
-    .cf-slider-caption p {
+.cf-slider-caption p {
       margin: 0;
       font-size: 14px;
       opacity: 0.85;
@@ -388,7 +391,7 @@
       align-items: center;
       justify-content: center;
       transition: background 0.18s, transform 0.18s;
-}
+    }
 
     .cf-slider-arrow:hover {
       background: rgba(255, 255, 255, 0.85);

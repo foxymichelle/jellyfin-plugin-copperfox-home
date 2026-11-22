@@ -121,7 +121,7 @@
          </button>`;
 
     const overlayHtml = isFolder ? "" : `
-      <div class="cf-hover-overlay cardOverlayContainer itemAction" data-action="link">
+      <div class="cf-hover-overlay">
         ${watchedBtnHtml}
         ${playBtnHtml}
         <button type="button" class="cf-hover-btn cf-btn-fav ${isFav ? "active-fav" : ""}" data-id="${item.Id}" data-fav="${isFav}" title="Favorite">
