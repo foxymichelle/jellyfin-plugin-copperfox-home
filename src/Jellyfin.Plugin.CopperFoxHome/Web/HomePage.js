@@ -257,28 +257,47 @@
       if (card.dataset.ctxBound) return;
       card.dataset.ctxBound = "1";
 
-      const openContextMenu = async (e) => {
+      const openContextMenu = (e) => {
         e.preventDefault();
         e.stopPropagation();
         const itemId = card.getAttribute("data-item-id");
-        const uid = ApiClient.getCurrentUserId();
-        const item = await ApiClient.getItem(uid, itemId);
-        const isFav = !!(item.UserData && item.UserData.IsFavorite);
-        const isPlayed = !!(item.UserData && item.UserData.Played);
+        const srvId = card.getAttribute("data-serverid") || ApiClient.serverId();
+        const itemType = card.getAttribute("data-type") || "Movie";
 
         const existing = document.getElementById("cfQuickMenu");
         if (existing) existing.remove();
 
         const menu = document.createElement("div");
         menu.id = "cfQuickMenu";
-        menu.style.cssText = `position:fixed;top:${Math.min(e.clientY, window.innerHeight - 280)}px;left:${Math.min(e.clientX, window.innerWidth - 210)}px;background:#202020;border:1px solid #444;border-radius:6px;padding:6px 0;z-index:99999;min-width:190px;box-shadow:0 8px 24px rgba(0,0,0,0.8);`;
+        menu.style.cssText = `position:fixed;top:${Math.min(e.clientY, window.innerHeight - 140)}px;left:${Math.min(e.clientX, window.innerWidth - 200)}px;background:#202020;border:1px solid #444;border-radius:6px;padding:6px 0;z-index:99999;min-width:180px;box-shadow:0 8px 24px rgba(0,0,0,0.8);`;
+
+        const triggerNativeAction = (action) => {
+          let nativeContainer = document.querySelector(".itemsContainer");
+          let tempContainer = null;
+          if (!nativeContainer) {
+            tempContainer = document.createElement("div");
+            tempContainer.className = "itemsContainer";
+            tempContainer.style.display = "none";
+            document.body.appendChild(tempContainer);
+            nativeContainer = tempContainer;
+          }
+          const proxyCard = document.createElement("div");
+          proxyCard.className = "card";
+          proxyCard.setAttribute("data-id", itemId);
+          proxyCard.setAttribute("data-serverid", srvId);
+          proxyCard.setAttribute("data-type", itemType);
+          const proxyBtn = document.createElement("button");
+          proxyBtn.type = "button";
+          proxyBtn.className = "itemAction";
+          proxyBtn.setAttribute("data-action", action);
+          proxyCard.appendChild(proxyBtn);
+          nativeContainer.appendChild(proxyCard);
+          proxyBtn.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
+          proxyCard.remove();
+          if (tempContainer) tempContainer.remove();
+        };
 
         const options = [
-          { name: "Open Details", id: "details" },
-          { name: isPlayed ? "Mark Unwatched" : "Mark Watched", id: "played" },
-          { name: isFav ? "Remove Favorite" : "Add Favorite", id: "fav" },
-          { name: "Add to Collection", id: "collection" },
-          { name: "Add to Playlist", id: "playlist" },
           { name: "Edit Metadata", id: "edit" },
           { name: "Edit Images", id: "images" },
           { name: "Refresh Metadata", id: "refresh" }
@@ -292,23 +311,17 @@
           row.onmouseleave = () => row.style.background = "transparent";
           row.onclick = async () => {
             menu.remove();
-            if (opt.id === "details") window.location.hash = `#/details?id=${itemId}`;
-            if (opt.id === "played") await ApiClient.ajax({ type: !isPlayed ? "POST" : "DELETE", url: ApiClient.getUrl(`Users/${uid}/PlayedItems/${itemId}`) });
-            if (opt.id === "fav") await ApiClient.ajax({ type: !isFav ? "POST" : "DELETE", url: ApiClient.getUrl(`Users/${uid}/FavoriteItems/${itemId}`) });
-            if (opt.id === "collection" && window.Emby && Emby.importModule) {
-              Emby.importModule("./components/collectionEditor/collectionEditor").then(m => new m().show({ items: [itemId], serverId: ApiClient.serverId() }));
-            }
-            if (opt.id === "playlist" && window.Emby && Emby.importModule) {
-              Emby.importModule("./components/playlisteditor/playlisteditor").then(m => new m().show({ items: [itemId], serverId: ApiClient.serverId() }));
-            }
-            if (opt.id === "edit" && window.Emby && Emby.importModule) {
-              Emby.importModule("./components/metadataEditor/metadataEditor").then(m => m.show(itemId, ApiClient.serverId()));
-            }
-            if (opt.id === "images" && window.Emby && Emby.importModule) {
-              Emby.importModule("./components/imageeditor/imageeditor").then(m => m.show({ itemId: itemId, serverId: ApiClient.serverId() }));
-            }
+            if (opt.id === "edit") triggerNativeAction("edit");
+            if (opt.id === "images") triggerNativeAction("editimages");
             if (opt.id === "refresh") {
-              await ApiClient.ajax({ type: "POST", url: ApiClient.getUrl(`Items/${itemId}/Refresh`, { Recursive: true, ImageRefreshMode: "Default", MetadataRefreshMode: "Default" }) });
+              await ApiClient.ajax({
+                type: "POST",
+                url: ApiClient.getUrl(`Items/${itemId}/Refresh`, {
+                  Recursive: true,
+                  ImageRefreshMode: "Default",
+                  MetadataRefreshMode: "Default"
+                })
+              });
             }
           };
           menu.appendChild(row);
