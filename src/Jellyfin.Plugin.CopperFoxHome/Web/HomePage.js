@@ -182,21 +182,32 @@
             return;
           }
 
-          // 2. Find playbackManager inside Jellyfin's Webpack chunk cache (webpackChunk_jellyfin_web)
+          // 2. Find playbackManager across any webpackChunk* global in Jellyfin Web
           try {
-            const chunkArr = window.webpackChunk_jellyfin_web || window.webpackChunkjellyfin_web;
-            if (Array.isArray(chunkArr)) {
+            const chunkKeys = Object.keys(window).filter(k => k.startsWith("webpackChunk"));
+            for (const key of chunkKeys) {
+              const chunkArr = window[key];
+              if (!Array.isArray(chunkArr)) continue;
               let wpRequire = null;
               chunkArr.push([["cf_probe_" + Date.now()], {}, (req) => { wpRequire = req; }]);
               chunkArr.pop();
               if (wpRequire && wpRequire.c) {
                 for (const modId of Object.keys(wpRequire.c)) {
                   const exp = wpRequire.c[modId]?.exports;
-                  const candidate = exp?.playbackManager || exp?.default;
-                  if (candidate && typeof candidate.play === "function" && typeof candidate.canPlay === "function") {
-                    window.playbackManager = candidate;
-                    candidate.play(playOpts);
-                    return;
+                  if (!exp || typeof exp !== "object") continue;
+                  const candidates = [exp, exp.default, exp.playbackManager, ...Object.values(exp)];
+                  for (const c of candidates) {
+                    if (
+                      c &&
+                      typeof c === "object" &&
+                      typeof c.play === "function" &&
+                      typeof c.pause === "function" &&
+                      typeof c.stop === "function"
+                    ) {
+                      window.playbackManager = c;
+                      c.play(playOpts);
+                      return;
+                    }
                   }
                 }
               }
