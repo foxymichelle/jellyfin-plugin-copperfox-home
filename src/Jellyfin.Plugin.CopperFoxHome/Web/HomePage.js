@@ -215,6 +215,7 @@
             proxyCard.remove();
           }, 0);
           return;
+        }
 
         const playedBtn = e.target.closest(".cf-btn-played");
         if (playedBtn) {
