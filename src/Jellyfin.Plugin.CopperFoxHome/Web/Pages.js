@@ -75,32 +75,40 @@
   // ==========================================================================
   // 2. BATCH ITEM METADATA LOOKUP (PATH, GENRES, USERDATA)
   // ==========================================================================
-    const existingDash = document.getElementById("cfHeaderDashboardBtn");
-    if (cfAdminStatus === false) {
-      if (existingDash) existingDash.remove();
-    } else if (cfAdminStatus === true && (!existingDash || !document.body.contains(existingDash))) {
-      if (existingDash) existingDash.remove();
-      const headerLinks = Array.from(document.querySelectorAll("header a, header button, .skinHeader a, .skinHeader button, [role='tab']"));
-      const favTab = headerLinks.find(el => (el.textContent || "").trim() === "Favorites");
+  async function ensureItemsCached(ids) {
+    const cleanIds = [...new Set(ids.map(id => String(id || "").replace(/-/g, "")).filter(Boolean))];
+    const missing = cleanIds.filter(id => !cfItemMetaCache.has(id));
+    if (missing.length === 0) return;
 
-      if (favTab) {
-        const tabsRoot = favTab.closest(".MuiTabs-root") || favTab.parentNode;
-        const dashBtn = document.createElement("button");
-        dashBtn.id = "cfHeaderDashboardBtn";
-        dashBtn.type = "button";
-        dashBtn.textContent = "Dashboard";
-        dashBtn.style.cssText =
-          "background:transparent;border:none;color:rgba(255,255,255,0.75);font-family:inherit;font-size:15px;font-weight:500;cursor:pointer;padding:8px 14px;margin-right:4px;white-space:nowrap;transition:color 0.15s ease;";
-        dashBtn.onmouseenter = () => { dashBtn.style.color = "#ffffff"; };
-        dashBtn.onmouseleave = () => { dashBtn.style.color = "rgba(255,255,255,0.75)"; };
-        dashBtn.onclick = (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          window.location.hash = "#/dashboard";
-        };
-        tabsRoot.parentNode.insertBefore(dashBtn, tabsRoot);
+    const uid = ApiClient.getCurrentUserId();
+    for (let i = 0; i < missing.length; i += 100) {
+      const chunk = missing.slice(i, i + 100);
+      try {
+        const res = await ApiClient.getItems(uid, {
+          Ids: chunk.join(","),
+          Fields: "Path,Genres"
+        });
+        for (const item of (res.Items || [])) {
+          const normId = (item.Id || "").replace(/-/g, "");
+          const pathNorm = (item.Path || "").replace(/\\/g, "/");
+          const isDiscover = /\/discover(\/|$)/i.test(pathNorm);
+          const genres = (item.Genres || []).map(g => g.toLowerCase());
+          const ud = item.UserData || {};
+          const entry = {
+            isDiscover,
+            genres,
+            played: !!ud.Played,
+            inProgress: !ud.Played && (ud.PlaybackPositionTicks || 0) > 0,
+            isFavorite: !!ud.IsFavorite
+          };
+          cfItemMetaCache.set(normId, entry);
+          cfItemMetaCache.set(item.Id, entry);
+        }
+      } catch (err) {
+        console.warn("CopperFox Pages metadata fetch failed:", err);
       }
     }
+  }
 
   // ==========================================================================
   // 3. ITEM DETAIL PAGE: DISCOVER TOOLBAR + HIDE DISCOVER IN "MORE LIKE THIS"
@@ -312,12 +320,10 @@
       document.querySelector(".page:not(.hide)");
     if (!activePage) return;
 
-    // Pick the main library grid container (ignore small header/tab scrollers)
     const grids = Array.from(activePage.querySelectorAll(".itemsContainer"));
     const grid = grids.find(g => g.querySelector(".card[data-id]")) || grids[0];
     if (!grid) return;
 
-    // Inject bar once per page view / parentId change
     const currentViewKey = hash;
     if (activePage.dataset.cfFilterView !== currentViewKey || !activePage.querySelector(".cf-filter-bar")) {
       activePage.dataset.cfFilterView = currentViewKey;
