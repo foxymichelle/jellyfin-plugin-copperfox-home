@@ -170,50 +170,26 @@
           playBtn.blur();
           const playId = playBtn.getAttribute("data-id") || card.getAttribute("data-item-id");
           const srvId = playBtn.getAttribute("data-serverid") || ApiClient.serverId();
-          const itemType = card.getAttribute("data-type") || "Movie";
-          const mediaType = card.getAttribute("data-mediatype") || "Video";
           const startPos = parseInt(card.getAttribute("data-positionticks") || "0", 10) || 0;
+          const playOpts = { ids: [playId], serverId: srvId };
+          if (startPos > 0) playOpts.startPositionTicks = startPos;
 
           if (window.playbackManager && typeof window.playbackManager.play === "function") {
-            window.playbackManager.play({
-              ids: [playId],
-              serverId: srvId,
-              startPositionTicks: startPos
+            window.playbackManager.play(playOpts);
+            return;
+          }
+
+          if (typeof window.require === "function") {
+            window.require(["playbackManager"], function (pm) {
+              const manager = (pm && pm.default) || pm;
+              if (manager && typeof manager.play === "function") {
+                manager.play(playOpts);
+              }
             });
             return;
           }
 
-          let bridgeContainer = document.getElementById("cfActionBridge");
-          if (!bridgeContainer) {
-            bridgeContainer = document.createElement("div", { is: "emby-itemscontainer" });
-            bridgeContainer.id = "cfActionBridge";
-            bridgeContainer.className = "itemsContainer";
-            bridgeContainer.style.cssText = "position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none;";
-            document.body.appendChild(bridgeContainer);
-          }
-
-          const proxyCard = document.createElement("div");
-          proxyCard.className = "card";
-          proxyCard.setAttribute("data-id", playId);
-          proxyCard.setAttribute("data-serverid", srvId);
-          proxyCard.setAttribute("data-type", itemType);
-          proxyCard.setAttribute("data-mediatype", mediaType);
-          proxyCard.setAttribute("data-isfolder", "false");
-          if (startPos > 0) {
-            proxyCard.setAttribute("data-positionticks", String(startPos));
-          }
-
-          const proxyBtn = document.createElement("button");
-          proxyBtn.type = "button";
-          proxyBtn.className = "itemAction";
-          proxyBtn.setAttribute("data-action", "resume");
-          proxyCard.appendChild(proxyBtn);
-          bridgeContainer.appendChild(proxyCard);
-
-          setTimeout(() => {
-            proxyBtn.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
-            proxyCard.remove();
-          }, 0);
+          window.location.hash = `#/details?id=${playId}&serverId=${srvId}`;
           return;
         }
 

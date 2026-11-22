@@ -346,107 +346,122 @@
   }
 
   // ==========================================================================
-  // 5. ROUTE & DOM OBSERVERS
+  // 5. HEADER & DASHBOARD SIDEBAR LOGO SWAP + ADMIN "DASHBOARD" LINK
+  // ==========================================================================
+  function swapLogos() {
+    try {
+      if (!window.ApiClient) return;
+      const logoUrl = ApiClient.getUrl("CopperFoxHome/Logo");
+      const imgs = document.querySelectorAll("img");
+      for (const img of imgs) {
+        if (!img.src) continue;
+        if (
+          img.src.includes("icon-transparent") ||
+          img.src.includes("banner-light") ||
+          img.src.includes("banner-dark")
+        ) {
+          img.src = logoUrl;
+          img.style.objectFit = "contain";
+          if (img.closest("header, .skinHeader, .MuiButton-startIcon")) {
+            img.style.width = "36px";
+            img.style.height = "36px";
+            img.style.maxWidth = "none";
+            img.style.maxHeight = "none";
+          }
+        }
+      }
+    } catch (e) {
+      console.error("CF Logo swap error:", e);
+    }
+  }
+
+  let isAdminCached = null;
+
+  function applyAdminHeaderAndMenus() {
+    try {
+      if (!window.ApiClient || typeof ApiClient.getCurrentUser !== "function") return;
+
+      if (isAdminCached === null) {
+        ApiClient.getCurrentUser()
+          .then(user => {
+            if (user && user.Policy) {
+              isAdminCached = !!user.Policy.IsAdministrator;
+              applyAdminHeaderAndMenus();
+            }
+          })
+          .catch(() => {});
+        return;
+      }
+
+      if (!isAdminCached) {
+        const existingDash = document.getElementById("cfHeaderDashboardBtn");
+        if (existingDash) existingDash.remove();
+
+        const popovers = document.querySelectorAll('.MuiPopover-root, .MuiMenu-root, .dialogContainer');
+        for (const pop of popovers) {
+          const items = pop.querySelectorAll('li, a, button, [role="menuitem"]');
+          for (const el of items) {
+            const txt = (el.textContent || "").trim();
+            if (txt === "CopperFox Home" || /jellyfin enhanced/i.test(txt)) {
+              el.style.display = "none";
+            }
+          }
+        }
+        return;
+      }
+
+      const existingDash = document.getElementById("cfHeaderDashboardBtn");
+      if (existingDash && document.body.contains(existingDash)) return;
+      if (existingDash) existingDash.remove();
+
+      const candidates = Array.from(document.querySelectorAll("header button, header a, .skinHeader button, .skinHeader a, [role='tab']"));
+      const favBtn = candidates.find(el => (el.textContent || "").trim() === "Favorites");
+      if (!favBtn || !favBtn.parentNode) return;
+
+      const dashBtn = document.createElement("button");
+      dashBtn.id = "cfHeaderDashboardBtn";
+      dashBtn.type = "button";
+      dashBtn.textContent = "Dashboard";
+      dashBtn.style.cssText =
+        "background:transparent;border:none;color:rgba(255,255,255,0.75);font-family:inherit;font-size:15px;font-weight:500;cursor:pointer;padding:8px 14px;margin-right:4px;white-space:nowrap;";
+      dashBtn.onmouseenter = () => { dashBtn.style.color = "#ffffff"; };
+      dashBtn.onmouseleave = () => { dashBtn.style.color = "rgba(255,255,255,0.75)"; };
+      dashBtn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        window.location.hash = "#/dashboard";
+      };
+
+      favBtn.parentNode.insertBefore(dashBtn, favBtn);
+    } catch (e) {
+      console.error("CF Admin header error:", e);
+    }
+  }
+
+  // ==========================================================================
+  // 6. ROUTE & DOM OBSERVERS
   // ==========================================================================
   let pageTimer = null;
   function schedulePageUpdate() {
-    syncHeaderAndLogosNow();
+    swapLogos();
+    applyAdminHeaderAndMenus();
     clearTimeout(pageTimer);
     pageTimer = setTimeout(() => {
-      syncHeaderAndLogosNow();
       handleDetailPage();
       handleFolderViews();
     }, 200);
   }
 
   const observer = new MutationObserver(() => {
-    syncHeaderAndLogosNow();
     schedulePageUpdate();
   });
   observer.observe(document.body, { childList: true, subtree: true });
 
-  syncHeaderAndLogosNow();
   document.addEventListener("viewshow", schedulePageUpdate);
   window.addEventListener("hashchange", schedulePageUpdate);
-  setTimeout(schedulePageUpdate, 600);
+  setInterval(() => {
+    swapLogos();
+    applyAdminHeaderAndMenus();
+  }, 1000);
+  schedulePageUpdate();
 })();
-
-  // ==========================================================================
-  // 6. HEADER & DASHBOARD SIDEBAR LOGO SWAP + ADMIN "DASHBOARD" LINK
-  // ==========================================================================
-  let cfAdminStatus = null;
-
-  function syncHeaderAndLogosNow() {
-    const logoUrl = ApiClient.getUrl("CopperFoxHome/Logo");
-
-    // 1. Swap top header AND Dashboard left-sidebar logo images
-    const logoImgs = document.querySelectorAll(
-      ".skinHeader img, header img, .MuiButton-startIcon img, .MuiDrawer-root img, .mainDrawer img, .adminDrawerLogo img"
-    );
-    for (const img of logoImgs) {
-      if (
-        img.src &&
-        (img.src.includes("icon-transparent") || img.src.includes("banner-light") || img.src.includes("banner-dark"))
-      ) {
-        img.src = logoUrl;
-        img.style.objectFit = "contain";
-        if (img.closest("header, .skinHeader, .MuiButton-startIcon")) {
-          img.style.width = "36px";
-          img.style.height = "36px";
-          img.style.maxWidth = "none";
-          img.style.maxHeight = "none";
-        }
-      }
-    }
-
-    if (cfAdminStatus === null) {
-      if (window.ApiClient && typeof ApiClient.getCurrentUser === "function") {
-        ApiClient.getCurrentUser().then(user => {
-          cfAdminStatus = !!(user && user.Policy && user.Policy.IsAdministrator);
-          syncHeaderAndLogosNow();
-        }).catch(() => {});
-      }
-      return;
-    }
-
-    // 2. Insert "Dashboard" button in header right before "Favorites" for admins
-    const existingDash = document.getElementById("cfHeaderDashboardBtn");
-    if (!cfAdminStatus) {
-      if (existingDash) existingDash.remove();
-    } else if (!existingDash || !document.body.contains(existingDash)) {
-      if (existingDash) existingDash.remove();
-      const headerLinks = Array.from(document.querySelectorAll("header a, header button, .skinHeader a, .skinHeader button, [role='tab']"));
-      const favTab = headerLinks.find(el => (el.textContent || "").trim() === "Favorites");
-
-      if (favTab && favTab.parentNode) {
-        const dashBtn = document.createElement("button");
-        dashBtn.id = "cfHeaderDashboardBtn";
-        dashBtn.type = "button";
-        dashBtn.textContent = "Dashboard";
-        dashBtn.style.cssText =
-          "background:transparent;border:none;color:rgba(255,255,255,0.75);font-family:inherit;font-size:15px;font-weight:500;cursor:pointer;padding:8px 14px;margin-right:4px;white-space:nowrap;transition:color 0.15s ease;";
-        dashBtn.onmouseenter = () => { dashBtn.style.color = "#ffffff"; };
-        dashBtn.onmouseleave = () => { dashBtn.style.color = "rgba(255,255,255,0.75)"; };
-        dashBtn.onclick = (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          window.location.hash = "#/dashboard";
-        };
-        favTab.parentNode.insertBefore(dashBtn, favTab);
-      }
-    }
-
-    // 3. Hide CopperFox Home & Jellyfin Enhanced from user dropdown for non-admins
-    if (!cfAdminStatus) {
-      const popovers = document.querySelectorAll('.MuiPopover-root, .MuiMenu-root, .dialogContainer');
-      for (const pop of popovers) {
-        const items = Array.from(pop.querySelectorAll('li, a, button, [role="menuitem"]'));
-        for (const el of items) {
-          const txt = (el.textContent || "").trim();
-          if (txt === "CopperFox Home" || /jellyfin enhanced/i.test(txt)) {
-            el.style.display = "none";
-          }
-        }
-      }
-    }
-  }
