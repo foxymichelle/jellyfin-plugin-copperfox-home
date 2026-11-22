@@ -39,25 +39,40 @@ public class CopperFoxHomeController : ControllerBase
     [HttpGet("ClientScript")]
     [AllowAnonymous]
     [Produces("application/javascript")]
+    [HttpGet("ClientScript")]
+    [AllowAnonymous]
+    [Produces("application/javascript")]
     public ActionResult GetClientScript()
     {
         var assembly = typeof(Plugin).Assembly;
-        var resourceName = assembly.GetManifestResourceNames()
-            .FirstOrDefault(n => n.EndsWith("HomePage.js", StringComparison.OrdinalIgnoreCase));
+        var scriptFiles = new[] { "Styles.js", "HomePage.js", "Pages.js" };
+        var sb = new System.Text.StringBuilder();
 
-        if (resourceName == null)
+        foreach (var file in scriptFiles)
+        {
+            var resourceName = assembly.GetManifestResourceNames()
+                .FirstOrDefault(n => n.EndsWith(file, StringComparison.OrdinalIgnoreCase));
+            if (resourceName == null)
+            {
+                continue;
+            }
+
+            using var stream = assembly.GetManifestResourceStream(resourceName);
+            if (stream == null)
+            {
+                continue;
+            }
+
+            using var reader = new StreamReader(stream);
+            sb.AppendLine(reader.ReadToEnd());
+        }
+
+        if (sb.Length == 0)
         {
             return NotFound();
         }
 
-        using var stream = assembly.GetManifestResourceStream(resourceName);
-        if (stream == null)
-        {
-            return NotFound();
-        }
-
-        using var reader = new StreamReader(stream);
-        return Content(reader.ReadToEnd(), "application/javascript");
+        return Content(sb.ToString(), "application/javascript");
     }
     [HttpPost("ClearSliderCache")]
     [AllowAnonymous]

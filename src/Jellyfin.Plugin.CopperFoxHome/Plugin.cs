@@ -22,7 +22,7 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
 
     public override Guid Id => Guid.Parse("c099e7f0-4a1b-4c8d-9e2a-7f1b3c5d8e9a");
 
-    public override string Description => "Curated and personalized home screen rows for Desktop and Starfin on Roku.";
+    public override string Description => "Personalized content rows for Desktop and Roku (Starfin -> CopperfoxTV).";
 
     public IEnumerable<PluginPageInfo> GetPages()
     {

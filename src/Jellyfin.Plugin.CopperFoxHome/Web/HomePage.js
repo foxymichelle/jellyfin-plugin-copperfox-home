@@ -1,3 +1,7 @@
+(function () {
+  let inFlight = false;
+  let lastFetchTime = 0;
+  
   function getItemHref(item) {
     if (item.Type === "CollectionFolder" || item.Type === "UserView") {
       const cType = (item.CollectionType || "").toLowerCase();
@@ -856,6 +860,6 @@
   setInterval(() => {
     const s = document.getElementById("cfHomeStyles");
     if (s && document.head.lastElementChild !== s) document.head.appendChild(s);
-  }, 1500);
-  setTimeout(loadOnce, 1000);
+  }, 800);
+  setTimeout(loadOnce, 600);
 })();
