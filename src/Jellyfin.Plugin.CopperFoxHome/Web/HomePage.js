@@ -163,7 +163,7 @@
       card.dataset.cfNavBound = "1";
       card.addEventListener("click", async function (e) {
         
-      const playBtn = e.target.closest(".cf-btn-play");
+        const playBtn = e.target.closest(".cf-btn-play");
         if (playBtn) {
           e.preventDefault();
           e.stopPropagation();
@@ -207,33 +207,6 @@
           proxyBtn.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
           proxyCard.remove();
           if (tempContainer) tempContainer.remove();
-          return;
-        }
-
-          // 3. Fallback: trigger Jellyfin's native itemAction="resume" on a mounted .itemsContainer
-          const nativeContainer = document.querySelector(".itemsContainer") || (() => {
-            const d = document.createElement("div");
-            d.className = "itemsContainer";
-            d.style.display = "none";
-            document.body.appendChild(d);
-            return d;
-          })();
-          const proxyCard = document.createElement("div");
-          proxyCard.className = "card";
-          proxyCard.setAttribute("data-id", playId);
-          proxyCard.setAttribute("data-serverid", srvId);
-          proxyCard.setAttribute("data-type", itemType);
-          proxyCard.setAttribute("data-mediatype", mediaType);
-          proxyCard.setAttribute("data-isfolder", "false");
-          if (startPos > 0) proxyCard.setAttribute("data-positionticks", String(startPos));
-          const proxyBtn = document.createElement("button");
-          proxyBtn.type = "button";
-          proxyBtn.className = "itemAction";
-          proxyBtn.setAttribute("data-action", "resume");
-          proxyCard.appendChild(proxyBtn);
-          nativeContainer.appendChild(proxyCard);
-          proxyBtn.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
-          proxyCard.remove();
           return;
         }
 
