@@ -2,6 +2,8 @@
 
 A custom Jellyfin plugin that replaces Jellyfin's default home screen with customizable sections that isolate or exclude the JellyBridge Discover folder and that works as both a web-client injections script and on a modified branch of Starfin Roku, creating onsistent card styling across Desktop and Roku. 
 
+NOTE: The web plugin will populate Jellyfin setting rows first, but in order to 'trick' the page into loading the player, each user needs to go to **User Settings > Home** and set the first Home Section to **My Media (small)** and the rest of the rows to **None**. Style.cs will hide that row on web, Roku does not render it.
+
 There are 3 components that work together to accomplish this:
 
 ---
@@ -70,6 +72,21 @@ The C# server plugin exposes the CopperFoxHome Rows API endpoint and a dashboard
   * **Streaming Services:** Renders quick-launch service tiles (`Netflix`, `Hulu`, `Disney+`, `Max`, `Prime Video`, `Apple TV+`, `Paramount+`, `Peacock`) on the web client that open dedicated Discover only landing pages filtered by service tags.
 * **Per-Row Display & Pagination:** Choose between **Poster** (`2:3`) and **Thumb** (`16:9` with automatic Backdrop fallback) per row, loading 20 posters or 14 thumbs initially with inline **MORE** pagination.
 
+### Web Client Enhancements & UI Customizations
+* **Unified Card Hover & Playback Controls:**
+  * Clean `1.04x` card zoom on hover with a subtle bottom gradient bar, top-left media type/episode count badges (`movie`, `2S | 24E`, `collection | X`), and top-right season/episode badges (`S1:E4`) on *Continue Watching*.
+  * Bottom hover action bar with **Mark Watched** (left), **Play / Resume** (center, resuming from saved playback progress), and **Favorite** (right).
+  * Custom right-click / double-click context menu on Home cards for quick admin access to **Edit Metadata**, **Edit Images**, and **Refresh Metadata**.
+* **Folder View Quick-Filter Bar (`Movies`, `Shows`, `Discover`):**
+  * Injects a two-row pill filter bar above library grids for instant client-side filtering without page reloads:
+    * **Row 1 (Owned Folders):** **Favorites** toggle plus single-select **Unwatched**, **Continue**, and **Watched** filters (hidden on the Discover folder).
+    * **Row 2 (All Folders):** Multi-select genre filters (**Family**, **Animation**, **Action**, **Adventure**, **Fantasy**, **Comedy**, **Drama**, **Romance**, **Mystery**, **Sci-Fi**, **Crime**, **Thriller** [includes Horror], **War**, **Western**, **History**, **Documentary**, and **Other**).
+* **Discover Item Isolation Across Native Views:**
+  * Hides playback, watched, and more-menu buttons on Discover cards and item detail toolbars (leaving **Favorite** and **Trailer** available).
+  * Automatically filters Discover folder items out of **More Like This** recommendations on item detail pages.
+* **Custom Branding & Admin Header Navigation:**
+  * Replaces the default Jellyfin header logo, admin dashboard sidebar logo, and browser tab favicon with the plugin's embedded `logo.png`.
+  * Places a **Dashboard** shortcut directly before **Favorites** in the top header for administrators and hides plugin menu links (**CopperFox Home** and **Jellyfin Enhanced**) from non-admin user dropdown menus.
 
 ---
 
@@ -161,8 +178,6 @@ The Roku client consumes the `/CopperFoxHome/Rows` endpoint so row ordering, lib
   * Adds SceneGraph overlays for the permanent top-right badge (`cfBadgeGroup`), the inline **MORE** pagination tile (`cfMoreGroup`), and the full-width `1760x540` Hero Slider card (`cfSliderGroup` with focus border, backdrop poster, scrim, title, and overview).
 * **`components/pages/Video/Cards/VideoMediaCard/VideoMediaCard.bs`**
   * Binds `cfBadgeText` dynamically to card width, toggles the **MORE** card focus styling, and renders the full-width `SliderRow` backdrop banner with a crisp focus border.
-
-NOTE: This plugin will populate Jellyfin setting rows first, so each user needs to go to **User Settings > Home** and set all of the Home Sections to **None**.
 
 ---
 

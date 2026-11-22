@@ -5,7 +5,15 @@
   style.id = "cfHomeStyles";
   style.textContent = `
     /* ==========================================================================
-       1. CARD CONTAINERS & HOVER ZOOM
+       1. HIDE JELLYFIN FIRST ROW SO PLAY WORKS (See README)
+       ========================================================================== */
+    #indexPage .verticalSection:not(.cf-custom-section),
+    #homeTab .verticalSection:not(.cf-custom-section) {
+        display: none !important;
+    }
+
+    /* ==========================================================================
+       CARD CONTAINERS & HOVER ZOOM
        ========================================================================== */
     .cf-custom-section .cardBox,
     .itemsContainer .cardBox,
