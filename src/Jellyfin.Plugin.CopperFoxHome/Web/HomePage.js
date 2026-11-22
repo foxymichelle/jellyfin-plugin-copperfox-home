@@ -163,7 +163,7 @@
       card.dataset.cfNavBound = "1";
       card.addEventListener("click", async function (e) {
         
-        const playBtn = e.target.closest(".cf-btn-play");
+      const playBtn = e.target.closest(".cf-btn-play");
         if (playBtn) {
           e.preventDefault();
           e.stopPropagation();
@@ -172,23 +172,47 @@
           const srvId = playBtn.getAttribute("data-serverid") || ApiClient.serverId();
           const itemType = card.getAttribute("data-type") || "Movie";
           const mediaType = card.getAttribute("data-mediatype") || "Video";
+          const startPos = parseInt(card.getAttribute("data-positionticks") || "0", 10) || 0;
+          const playOpts = { ids: [playId], serverId: srvId };
+          if (startPos > 0) playOpts.startPositionTicks = startPos;
 
+          // 1. Check global playbackManager
           if (window.playbackManager && typeof window.playbackManager.play === "function") {
-            window.playbackManager.play({ ids: [playId], serverId: srvId });
+            window.playbackManager.play(playOpts);
             return;
           }
 
-          // Delegate through Jellyfin's native itemsContainer card action listener
-          let nativeContainer = document.querySelector(".itemsContainer");
-          let tempContainer = null;
-          if (!nativeContainer) {
-            tempContainer = document.createElement("div");
-            tempContainer.className = "itemsContainer";
-            tempContainer.style.display = "none";
-            document.body.appendChild(tempContainer);
-            nativeContainer = tempContainer;
+          // 2. Find playbackManager inside Jellyfin's Webpack chunk cache (webpackChunk_jellyfin_web)
+          try {
+            const chunkArr = window.webpackChunk_jellyfin_web || window.webpackChunkjellyfin_web;
+            if (Array.isArray(chunkArr)) {
+              let wpRequire = null;
+              chunkArr.push([["cf_probe_" + Date.now()], {}, (req) => { wpRequire = req; }]);
+              chunkArr.pop();
+              if (wpRequire && wpRequire.c) {
+                for (const modId of Object.keys(wpRequire.c)) {
+                  const exp = wpRequire.c[modId]?.exports;
+                  const candidate = exp?.playbackManager || exp?.default;
+                  if (candidate && typeof candidate.play === "function" && typeof candidate.canPlay === "function") {
+                    window.playbackManager = candidate;
+                    candidate.play(playOpts);
+                    return;
+                  }
+                }
+              }
+            }
+          } catch (wpErr) {
+            console.warn("Webpack playbackManager lookup failed:", wpErr);
           }
 
+          // 3. Fallback: trigger Jellyfin's native itemAction="resume" on a mounted .itemsContainer
+          const nativeContainer = document.querySelector(".itemsContainer") || (() => {
+            const d = document.createElement("div");
+            d.className = "itemsContainer";
+            d.style.display = "none";
+            document.body.appendChild(d);
+            return d;
+          })();
           const proxyCard = document.createElement("div");
           proxyCard.className = "card";
           proxyCard.setAttribute("data-id", playId);
@@ -196,17 +220,15 @@
           proxyCard.setAttribute("data-type", itemType);
           proxyCard.setAttribute("data-mediatype", mediaType);
           proxyCard.setAttribute("data-isfolder", "false");
-
+          if (startPos > 0) proxyCard.setAttribute("data-positionticks", String(startPos));
           const proxyBtn = document.createElement("button");
           proxyBtn.type = "button";
           proxyBtn.className = "itemAction";
           proxyBtn.setAttribute("data-action", "resume");
           proxyCard.appendChild(proxyBtn);
           nativeContainer.appendChild(proxyCard);
-
           proxyBtn.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
           proxyCard.remove();
-          if (tempContainer) tempContainer.remove();
           return;
         }
 
