@@ -358,6 +358,24 @@
     try {
       if (!window.ApiClient) return;
       const logoUrl = ApiClient.getUrl("CopperFoxHome/Logo");
+
+      // Swap browser tab favicon & touch icons
+      const iconLinks = document.querySelectorAll("link[rel*='icon']");
+      if (iconLinks.length > 0) {
+        for (const link of iconLinks) {
+          if (link.href !== logoUrl) {
+            link.type = "image/png";
+            link.href = logoUrl;
+          }
+        }
+      } else {
+        const link = document.createElement("link");
+        link.rel = "icon";
+        link.type = "image/png";
+        link.href = logoUrl;
+        document.head.appendChild(link);
+      }
+
       const imgs = document.querySelectorAll("img");
       for (const img of imgs) {
         if (!img.src) continue;

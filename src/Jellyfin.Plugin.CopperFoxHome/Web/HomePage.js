@@ -170,26 +170,65 @@
           playBtn.blur();
           const playId = playBtn.getAttribute("data-id") || card.getAttribute("data-item-id");
           const srvId = playBtn.getAttribute("data-serverid") || ApiClient.serverId();
+          const itemType = card.getAttribute("data-type") || "Movie";
+          const mediaType = card.getAttribute("data-mediatype") || "Video";
           const startPos = parseInt(card.getAttribute("data-positionticks") || "0", 10) || 0;
           const playOpts = { ids: [playId], serverId: srvId };
           if (startPos > 0) playOpts.startPositionTicks = startPos;
 
+          // 1. Check global playbackManager
           if (window.playbackManager && typeof window.playbackManager.play === "function") {
             window.playbackManager.play(playOpts);
             return;
           }
 
-          if (typeof window.require === "function") {
-            window.require(["playbackManager"], function (pm) {
-              const manager = (pm && pm.default) || pm;
-              if (manager && typeof manager.play === "function") {
-                manager.play(playOpts);
+          // 2. Find playbackManager inside Jellyfin's Webpack chunk cache (webpackChunk_jellyfin_web)
+          try {
+            const chunkArr = window.webpackChunk_jellyfin_web || window.webpackChunkjellyfin_web;
+            if (Array.isArray(chunkArr)) {
+              let wpRequire = null;
+              chunkArr.push([["cf_probe_" + Date.now()], {}, (req) => { wpRequire = req; }]);
+              chunkArr.pop();
+              if (wpRequire && wpRequire.c) {
+                for (const modId of Object.keys(wpRequire.c)) {
+                  const exp = wpRequire.c[modId]?.exports;
+                  const candidate = exp?.playbackManager || exp?.default;
+                  if (candidate && typeof candidate.play === "function" && typeof candidate.canPlay === "function") {
+                    window.playbackManager = candidate;
+                    candidate.play(playOpts);
+                    return;
+                  }
+                }
               }
-            });
-            return;
+            }
+          } catch (wpErr) {
+            console.warn("Webpack playbackManager lookup failed:", wpErr);
           }
 
-          window.location.hash = `#/details?id=${playId}&serverId=${srvId}`;
+          // 3. Fallback: trigger Jellyfin's native itemAction="resume" on a mounted .itemsContainer
+          const nativeContainer = document.querySelector(".itemsContainer") || (() => {
+            const d = document.createElement("div");
+            d.className = "itemsContainer";
+            d.style.display = "none";
+            document.body.appendChild(d);
+            return d;
+          })();
+          const proxyCard = document.createElement("div");
+          proxyCard.className = "card";
+          proxyCard.setAttribute("data-id", playId);
+          proxyCard.setAttribute("data-serverid", srvId);
+          proxyCard.setAttribute("data-type", itemType);
+          proxyCard.setAttribute("data-mediatype", mediaType);
+          proxyCard.setAttribute("data-isfolder", "false");
+          if (startPos > 0) proxyCard.setAttribute("data-positionticks", String(startPos));
+          const proxyBtn = document.createElement("button");
+          proxyBtn.type = "button";
+          proxyBtn.className = "itemAction";
+          proxyBtn.setAttribute("data-action", "resume");
+          proxyCard.appendChild(proxyBtn);
+          nativeContainer.appendChild(proxyCard);
+          proxyBtn.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
+          proxyCard.remove();
           return;
         }
 
