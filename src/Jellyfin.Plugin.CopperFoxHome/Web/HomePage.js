@@ -316,7 +316,21 @@
           row.onclick = async () => {
             menu.remove();
             if (opt.id === "edit") triggerNativeAction("edit");
-            if (opt.id === "images") triggerNativeAction("editimages");
+            if (opt.id === "images") {
+              triggerNativeAction("menu");
+              let attempts = 0;
+              const pickEditImages = setInterval(() => {
+                attempts++;
+                const sheetBtns = Array.from(document.querySelectorAll(".actionSheetMenuItem, .listItem"));
+                const imgBtn = sheetBtns.find(b => /edit images/i.test(b.textContent || ""));
+                if (imgBtn) {
+                  clearInterval(pickEditImages);
+                  imgBtn.click();
+                } else if (attempts > 20) {
+                  clearInterval(pickEditImages);
+                }
+              }, 25);
+            }
             if (opt.id === "refresh") {
               await ApiClient.ajax({
                 type: "POST",

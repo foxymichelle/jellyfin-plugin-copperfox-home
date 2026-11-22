@@ -115,6 +115,7 @@
 
     /* Watched Button States */
     .cf-btn-played .material-icons {
+      font-size: 26px !important;
       text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9) !important;
     }
 
@@ -125,12 +126,12 @@
 
     /* Favorite Button States */
     .cf-btn-fav .material-icons {
+      font-size: 26px !important;
       -webkit-text-stroke: 1px #ffffff !important;
     }
 
     .cf-btn-fav.active-fav .material-icons {
       color: #b5583c !important;
-      font-size: 26px !important;
       -webkit-text-stroke: 1px #ffffff !important;
     }
 
@@ -178,7 +179,7 @@
       right: 0;
       height: 5px;
       background: rgba(255, 255, 255, 0.5);
-      z-index: 4;
+      z-index: 11;
       pointer-events: none;
     }
 
