@@ -358,57 +358,80 @@
   // ==========================================================================
   let pageTimer = null;
   function schedulePageUpdate() {
+    syncHeaderAndLogosNow();
     clearTimeout(pageTimer);
     pageTimer = setTimeout(() => {
-      updateHeaderAndMenus();
+      syncHeaderAndLogosNow();
       handleDetailPage();
       handleFolderViews();
     }, 200);
   }
 
   const observer = new MutationObserver(() => {
+    syncHeaderAndLogosNow();
     schedulePageUpdate();
   });
   observer.observe(document.body, { childList: true, subtree: true });
 
+  resolveAdminStatus().then(() => syncHeaderAndLogosNow());
   document.addEventListener("viewshow", schedulePageUpdate);
   window.addEventListener("hashchange", schedulePageUpdate);
   setTimeout(schedulePageUpdate, 600);
-})();
 
   // ==========================================================================
-  // 6. HEADER LOGO SWAP & ADMIN "DASHBOARD" LINK AFTER LOGO
+  // 6. HEADER & DASHBOARD SIDEBAR LOGO SWAP + ADMIN "DASHBOARD" LINK
   // ==========================================================================
   let cfAdminStatus = null;
-  async function getIsAdminUser() {
-    if (cfAdminStatus !== null) return cfAdminStatus;
-    try {
-      const user = await ApiClient.getCurrentUser();
-      cfAdminStatus = !!(user && user.Policy && user.Policy.IsAdministrator);
-      return cfAdminStatus;
-    } catch {
-      return false;
+  let cfAdminPromise = null;
+
+  function resolveAdminStatus() {
+    if (cfAdminStatus !== null) return Promise.resolve(cfAdminStatus);
+    if (!cfAdminPromise) {
+      cfAdminPromise = ApiClient.getCurrentUser()
+        .then(user => {
+          cfAdminStatus = !!(user && user.Policy && user.Policy.IsAdministrator);
+          return cfAdminStatus;
+        })
+        .catch(() => false);
     }
+    return cfAdminPromise;
   }
 
-  async function updateHeaderAndMenus() {
-    const isAdmin = await getIsAdminUser();
+  function syncHeaderAndLogosNow() {
     const logoUrl = ApiClient.getUrl("CopperFoxHome/Logo");
 
-    // 1. Swap top header Jellyfin logo image
-    const headerImgs = document.querySelectorAll(".skinHeader img, header img, .MuiButton-startIcon img");
-    for (const img of headerImgs) {
-      if (img.src && img.src.includes("icon-transparent") && img.dataset.cfLogoSwapped !== "1") {
+    // 1. Swap top header AND Dashboard left-sidebar logo images
+    const logoImgs = document.querySelectorAll(
+      ".skinHeader img, header img, .MuiButton-startIcon img, .MuiDrawer-root img, .mainDrawer img, .adminDrawerLogo img"
+    );
+    for (const img of logoImgs) {
+      if (
+        img.src &&
+        (img.src.includes("icon-transparent") || img.src.includes("banner-light") || img.src.includes("banner-dark")) &&
+        img.dataset.cfLogoSwapped !== "1"
+      ) {
         img.dataset.cfLogoSwapped = "1";
         img.src = logoUrl;
+        img.style.objectFit = "contain";
+        if (img.closest("header, .skinHeader, .MuiButton-startIcon")) {
+          img.style.width = "36px";
+          img.style.height = "36px";
+          img.style.maxWidth = "none";
+          img.style.maxHeight = "none";
+        }
       }
+
+    if (cfAdminStatus === null) {
+      resolveAdminStatus().then(() => syncHeaderAndLogosNow());
+      return;
     }
 
-    // 2. Insert "Dashboard" button in header right before "Favorites" (after logo/name) for admins
+    // 2. Insert "Dashboard" button in header right before "Favorites" for admins
     const existingDash = document.getElementById("cfHeaderDashboardBtn");
-    if (!isAdmin) {
+    if (!cfAdminStatus) {
       if (existingDash) existingDash.remove();
-    } else if (!existingDash) {
+    } else if (!existingDash || !document.body.contains(existingDash)) {
+      if (existingDash) existingDash.remove();
       const headerLinks = Array.from(document.querySelectorAll("header a, header button, .skinHeader a, .skinHeader button"));
       const favTab = headerLinks.find(el => (el.textContent || "").trim() === "Favorites");
 
@@ -438,7 +461,7 @@
     }
 
     // 3. Hide CopperFox Home & Jellyfin Enhanced from user dropdown for non-admins
-    if (!isAdmin) {
+    if (!cfAdminStatus) {
       const popovers = document.querySelectorAll('.MuiPopover-root, .MuiMenu-root, .dialogContainer');
       for (const pop of popovers) {
         const items = Array.from(pop.querySelectorAll('li, a, button, [role="menuitem"]'));
