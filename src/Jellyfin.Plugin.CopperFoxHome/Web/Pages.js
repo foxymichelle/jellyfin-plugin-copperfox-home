@@ -76,7 +76,7 @@
   // 2. BATCH ITEM METADATA LOOKUP (PATH, GENRES, USERDATA)
   // ==========================================================================
   async function ensureItemsCached(ids) {
-    const cleanIds = [...new Set(ids.map(id => (id || "").replace(/-/g, "")).filter(Boolean))];
+    const cleanIds = [...new Set(ids.map(id => String(id || "").replace(/-/g, "")).filter(Boolean))];
     const missing = cleanIds.filter(id => !cfItemMetaCache.has(id));
     if (missing.length === 0) return;
 
@@ -119,7 +119,7 @@
     if (!detailPage || !hash.includes("details")) return;
 
     const match = hash.match(/[?&]id=([^&]+)/);
-    const detailId = match ? match : null;
+    const detailId = match ? match[1] : null;
     if (!detailId) return;
 
     await ensureItemsCached([detailId]);
@@ -309,25 +309,29 @@
   function handleFolderViews() {
     const hash = window.location.hash || "";
     const isFolderRoute =
-      hash.includes("movies.html") ||
-      hash.includes("tv.html") ||
-      hash.includes("list.html");
+      /^#\/(movies|tv|list)(\.html)?(\?|$)/i.test(hash) ||
+      hash.includes("topParentId=") ||
+      hash.includes("parentId=");
 
     if (!isFolderRoute) return;
 
-    const activePage = document.querySelector(".page:not(.hide)");
+    const activePage =
+      document.querySelector(".libraryPage:not(.hide)") ||
+      document.querySelector(".page:not(.hide)");
     if (!activePage) return;
 
-    const grid = activePage.querySelector(".itemsContainer");
+    // Pick the main library grid container (ignore small header/tab scrollers)
+    const grids = Array.from(activePage.querySelectorAll(".itemsContainer"));
+    const grid = grids.find(g => g.querySelector(".card[data-id]")) || grids[0];
     if (!grid) return;
 
     // Inject bar once per page view / parentId change
     const currentViewKey = hash;
-    if (activePage.dataset.cfFilterView !== currentViewKey) {
+    if (activePage.dataset.cfFilterView !== currentViewKey || !activePage.querySelector(".cf-filter-bar")) {
       activePage.dataset.cfFilterView = currentViewKey;
       const bar = buildFilterBar(activePage);
-      const container = grid.closest(".padded-left, .itemsViewSettingsContainer")?.parentNode || grid.parentNode;
-      container.insertBefore(bar, grid.closest(".padded-left") || grid);
+      const anchor = grid.closest(".padded-left") || grid;
+      anchor.parentNode.insertBefore(bar, anchor);
     }
 
     applyLibraryGridFilters(activePage);

@@ -272,15 +272,9 @@
         menu.style.cssText = `position:fixed;top:${Math.min(e.clientY, window.innerHeight - 140)}px;left:${Math.min(e.clientX, window.innerWidth - 200)}px;background:#202020;border:1px solid #444;border-radius:6px;padding:6px 0;z-index:99999;min-width:180px;box-shadow:0 8px 24px rgba(0,0,0,0.8);`;
 
         const triggerNativeAction = (action) => {
-          let nativeContainer = document.querySelector(".itemsContainer");
-          let tempContainer = null;
-          if (!nativeContainer) {
-            tempContainer = document.createElement("div");
-            tempContainer.className = "itemsContainer";
-            tempContainer.style.display = "none";
-            document.body.appendChild(tempContainer);
-            nativeContainer = tempContainer;
-          }
+          const tempContainer = document.createElement("div");
+          tempContainer.className = "itemsContainer";
+          tempContainer.style.cssText = "position:fixed;left:-9999px;top:-9999px;visibility:hidden;";
           const proxyCard = document.createElement("div");
           proxyCard.className = "card";
           proxyCard.setAttribute("data-id", itemId);
@@ -291,10 +285,10 @@
           proxyBtn.className = "itemAction";
           proxyBtn.setAttribute("data-action", action);
           proxyCard.appendChild(proxyBtn);
-          nativeContainer.appendChild(proxyCard);
+          tempContainer.appendChild(proxyCard);
+          document.body.appendChild(tempContainer);
           proxyBtn.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
-          proxyCard.remove();
-          if (tempContainer) tempContainer.remove();
+          tempContainer.remove();
         };
 
         const options = [
