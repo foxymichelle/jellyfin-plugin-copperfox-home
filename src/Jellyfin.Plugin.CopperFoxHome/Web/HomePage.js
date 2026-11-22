@@ -183,15 +183,18 @@
             return;
           }
 
-          const nativeContainer = document.querySelector(".itemsContainer");
-          if (!nativeContainer) return;
-
-          const scroller = nativeContainer.closest(".emby-scroller");
-          const savedScroll = scroller ? scroller.scrollLeft : 0;
+          let nativeContainer = document.querySelector(".itemsContainer");
+          let tempContainer = null;
+          if (!nativeContainer) {
+            tempContainer = document.createElement("div");
+            tempContainer.className = "itemsContainer";
+            tempContainer.style.display = "none";
+            document.body.appendChild(tempContainer);
+            nativeContainer = tempContainer;
+          }
 
           const proxyCard = document.createElement("div");
           proxyCard.className = "card";
-          proxyCard.style.cssText = "position:fixed;left:0;top:0;width:1px;height:1px;opacity:0;pointer-events:none;";
           proxyCard.setAttribute("data-id", playId);
           proxyCard.setAttribute("data-serverid", srvId);
           proxyCard.setAttribute("data-type", itemType);
@@ -210,11 +213,7 @@
 
           proxyBtn.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
           proxyCard.remove();
-
-          if (scroller) {
-            scroller.scrollLeft = savedScroll;
-            requestAnimationFrame(() => { scroller.scrollLeft = savedScroll; });
-          }
+          if (tempContainer) tempContainer.remove();
           return;
         }
 

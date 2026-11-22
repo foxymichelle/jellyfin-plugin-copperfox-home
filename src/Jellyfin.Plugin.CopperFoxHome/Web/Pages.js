@@ -375,28 +375,6 @@
   // 6. HEADER & DASHBOARD SIDEBAR LOGO SWAP + ADMIN "DASHBOARD" LINK
   // ==========================================================================
   let cfAdminStatus = null;
-  let cfAdminInFlight = false;
-
-  function resolveAdminStatus() {
-    if (cfAdminStatus === true) return Promise.resolve(true);
-    if (cfAdminInFlight) return Promise.resolve(cfAdminStatus);
-    if (!window.ApiClient || !ApiClient.getCurrentUserId || !ApiClient.getCurrentUserId()) {
-      return Promise.resolve(null);
-    }
-    cfAdminInFlight = true;
-    return ApiClient.getCurrentUser()
-      .then(user => {
-        cfAdminInFlight = false;
-        if (user && user.Policy) {
-          cfAdminStatus = !!user.Policy.IsAdministrator;
-        }
-        return cfAdminStatus;
-      })
-      .catch(() => {
-        cfAdminInFlight = false;
-        return null;
-      });
-  }
 
   function syncHeaderAndLogosNow() {
     const logoUrl = ApiClient.getUrl("CopperFoxHome/Logo");
@@ -408,10 +386,8 @@
     for (const img of logoImgs) {
       if (
         img.src &&
-        (img.src.includes("icon-transparent") || img.src.includes("banner-light") || img.src.includes("banner-dark")) &&
-        img.dataset.cfLogoSwapped !== "1"
+        (img.src.includes("icon-transparent") || img.src.includes("banner-light") || img.src.includes("banner-dark"))
       ) {
-        img.dataset.cfLogoSwapped = "1";
         img.src = logoUrl;
         img.style.objectFit = "contain";
         if (img.closest("header, .skinHeader, .MuiButton-startIcon")) {
@@ -424,7 +400,12 @@
     }
 
     if (cfAdminStatus === null) {
-      resolveAdminStatus().then(() => syncHeaderAndLogosNow());
+      if (window.ApiClient && typeof ApiClient.getCurrentUser === "function") {
+        ApiClient.getCurrentUser().then(user => {
+          cfAdminStatus = !!(user && user.Policy && user.Policy.IsAdministrator);
+          syncHeaderAndLogosNow();
+        }).catch(() => {});
+      }
       return;
     }
 
@@ -434,25 +415,18 @@
       if (existingDash) existingDash.remove();
     } else if (!existingDash || !document.body.contains(existingDash)) {
       if (existingDash) existingDash.remove();
-      const headerLinks = Array.from(document.querySelectorAll("header a, header button, .skinHeader a, .skinHeader button"));
+      const headerLinks = Array.from(document.querySelectorAll("header a, header button, .skinHeader a, .skinHeader button, [role='tab']"));
       const favTab = headerLinks.find(el => (el.textContent || "").trim() === "Favorites");
 
       if (favTab && favTab.parentNode) {
-        const dashBtn = favTab.cloneNode(true);
+        const dashBtn = document.createElement("button");
         dashBtn.id = "cfHeaderDashboardBtn";
-        if (dashBtn.tagName === "A") {
-          dashBtn.setAttribute("href", "#/dashboard");
-        }
-        const textEl = Array.from(dashBtn.querySelectorAll("*")).find(
-          el => el.children.length === 0 && (el.textContent || "").trim() === "Favorites"
-        );
-        if (textEl) {
-          textEl.textContent = "Dashboard";
-        } else {
-          dashBtn.textContent = "Dashboard";
-        }
-        dashBtn.classList.remove("Mui-selected", "emby-tab-button-active");
-        dashBtn.setAttribute("aria-selected", "false");
+        dashBtn.type = "button";
+        dashBtn.textContent = "Dashboard";
+        dashBtn.style.cssText =
+          "background:transparent;border:none;color:rgba(255,255,255,0.75);font-family:inherit;font-size:15px;font-weight:500;cursor:pointer;padding:8px 14px;margin-right:4px;white-space:nowrap;transition:color 0.15s ease;";
+        dashBtn.onmouseenter = () => { dashBtn.style.color = "#ffffff"; };
+        dashBtn.onmouseleave = () => { dashBtn.style.color = "rgba(255,255,255,0.75)"; };
         dashBtn.onclick = (e) => {
           e.preventDefault();
           e.stopPropagation();
