@@ -172,49 +172,43 @@
           const srvId = playBtn.getAttribute("data-serverid") || ApiClient.serverId();
           const itemType = card.getAttribute("data-type") || "Movie";
           const mediaType = card.getAttribute("data-mediatype") || "Video";
-          const startPos = parseInt(card.getAttribute("data-positionticks") || "0", 10) || 0;
-          const playOpts = { ids: [playId], serverId: srvId };
-          if (startPos > 0) playOpts.startPositionTicks = startPos;
 
-          // 1. Check global playbackManager
           if (window.playbackManager && typeof window.playbackManager.play === "function") {
-            window.playbackManager.play(playOpts);
+            window.playbackManager.play({ ids: [playId], serverId: srvId });
             return;
           }
 
-          // 2. Find playbackManager across any webpackChunk* global in Jellyfin Web
-          try {
-            const chunkKeys = Object.keys(window).filter(k => k.startsWith("webpackChunk"));
-            for (const key of chunkKeys) {
-              const chunkArr = window[key];
-              if (!Array.isArray(chunkArr)) continue;
-              let wpRequire = null;
-              chunkArr.push([["cf_probe_" + Date.now()], {}, (req) => { wpRequire = req; }]);
-              chunkArr.pop();
-              if (wpRequire && wpRequire.c) {
-                for (const modId of Object.keys(wpRequire.c)) {
-                  const exp = wpRequire.c[modId]?.exports;
-                  if (!exp || typeof exp !== "object") continue;
-                  const candidates = [exp, exp.default, exp.playbackManager, ...Object.values(exp)];
-                  for (const c of candidates) {
-                    if (
-                      c &&
-                      typeof c === "object" &&
-                      typeof c.play === "function" &&
-                      typeof c.pause === "function" &&
-                      typeof c.stop === "function"
-                    ) {
-                      window.playbackManager = c;
-                      c.play(playOpts);
-                      return;
-                    }
-                  }
-                }
-              }
-            }
-          } catch (wpErr) {
-            console.warn("Webpack playbackManager lookup failed:", wpErr);
+          // Delegate through Jellyfin's native itemsContainer card action listener
+          let nativeContainer = document.querySelector(".itemsContainer");
+          let tempContainer = null;
+          if (!nativeContainer) {
+            tempContainer = document.createElement("div");
+            tempContainer.className = "itemsContainer";
+            tempContainer.style.display = "none";
+            document.body.appendChild(tempContainer);
+            nativeContainer = tempContainer;
           }
+
+          const proxyCard = document.createElement("div");
+          proxyCard.className = "card";
+          proxyCard.setAttribute("data-id", playId);
+          proxyCard.setAttribute("data-serverid", srvId);
+          proxyCard.setAttribute("data-type", itemType);
+          proxyCard.setAttribute("data-mediatype", mediaType);
+          proxyCard.setAttribute("data-isfolder", "false");
+
+          const proxyBtn = document.createElement("button");
+          proxyBtn.type = "button";
+          proxyBtn.className = "itemAction";
+          proxyBtn.setAttribute("data-action", "resume");
+          proxyCard.appendChild(proxyBtn);
+          nativeContainer.appendChild(proxyCard);
+
+          proxyBtn.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
+          proxyCard.remove();
+          if (tempContainer) tempContainer.remove();
+          return;
+        }
 
           // 3. Fallback: trigger Jellyfin's native itemAction="resume" on a mounted .itemsContainer
           const nativeContainer = document.querySelector(".itemsContainer") || (() => {
