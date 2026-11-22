@@ -39,9 +39,6 @@ public class CopperFoxHomeController : ControllerBase
     [HttpGet("ClientScript")]
     [AllowAnonymous]
     [Produces("application/javascript")]
-    [HttpGet("ClientScript")]
-    [AllowAnonymous]
-    [Produces("application/javascript")]
     public ActionResult GetClientScript()
     {
         var assembly = typeof(Plugin).Assembly;
