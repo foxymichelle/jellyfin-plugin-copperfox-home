@@ -377,6 +377,7 @@
   document.addEventListener("viewshow", schedulePageUpdate);
   window.addEventListener("hashchange", schedulePageUpdate);
   setTimeout(schedulePageUpdate, 600);
+})();
 
   // ==========================================================================
   // 6. HEADER & DASHBOARD SIDEBAR LOGO SWAP + ADMIN "DASHBOARD" LINK
@@ -420,6 +421,7 @@
           img.style.maxHeight = "none";
         }
       }
+    }
 
     if (cfAdminStatus === null) {
       resolveAdminStatus().then(() => syncHeaderAndLogosNow());
