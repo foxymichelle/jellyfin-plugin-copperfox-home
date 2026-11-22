@@ -360,6 +360,7 @@
   function schedulePageUpdate() {
     clearTimeout(pageTimer);
     pageTimer = setTimeout(() => {
+      updateHeaderAndMenus();
       handleDetailPage();
       handleFolderViews();
     }, 200);
@@ -374,3 +375,74 @@
   window.addEventListener("hashchange", schedulePageUpdate);
   setTimeout(schedulePageUpdate, 600);
 })();
+
+  // ==========================================================================
+  // 6. HEADER LOGO SWAP & ADMIN "DASHBOARD" LINK AFTER LOGO
+  // ==========================================================================
+  let cfAdminStatus = null;
+  async function getIsAdminUser() {
+    if (cfAdminStatus !== null) return cfAdminStatus;
+    try {
+      const user = await ApiClient.getCurrentUser();
+      cfAdminStatus = !!(user && user.Policy && user.Policy.IsAdministrator);
+      return cfAdminStatus;
+    } catch {
+      return false;
+    }
+  }
+
+  async function updateHeaderAndMenus() {
+    const isAdmin = await getIsAdminUser();
+    const logoUrl = ApiClient.getUrl("CopperFoxHome/Logo");
+
+    // 1. Swap top header Jellyfin logo image
+    const headerImgs = document.querySelectorAll(".skinHeader img, header img, .MuiButton-startIcon img");
+    for (const img of headerImgs) {
+      if (img.src && img.src.includes("icon-transparent") && img.dataset.cfLogoSwapped !== "1") {
+        img.dataset.cfLogoSwapped = "1";
+        img.src = logoUrl;
+      }
+    }
+
+    // 2. Insert "Dashboard" button in header right after logo/title (before Favorites/Libraries) for admins
+    const existingDash = document.getElementById("cfHeaderDashboardBtn");
+    if (!isAdmin) {
+      if (existingDash) existingDash.remove();
+    } else if (!existingDash) {
+      // Find the home/logo button in the top header bar
+      const headerHomeBtn =
+        document.querySelector(".skinHeader .headerHomeButton") ||
+        document.querySelector("header a[href*='#/home'], header button:has(img)");
+
+      if (headerHomeBtn && headerHomeBtn.parentNode) {
+        const dashBtn = document.createElement("button");
+        dashBtn.id = "cfHeaderDashboardBtn";
+        dashBtn.type = "button";
+        dashBtn.textContent = "Dashboard";
+        dashBtn.style.cssText =
+          "background:transparent;border:none;color:inherit;font:inherit;font-size:15px;font-weight:500;cursor:pointer;padding:6px 12px;margin-left:8px;opacity:0.85;transition:opacity 0.15s,color 0.15s;";
+        dashBtn.onmouseenter = () => { dashBtn.style.opacity = "1"; dashBtn.style.color = "#a85c32"; };
+        dashBtn.onmouseleave = () => { dashBtn.style.opacity = "0.85"; dashBtn.style.color = "inherit"; };
+        dashBtn.onclick = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          window.location.hash = "#/dashboard";
+        };
+        headerHomeBtn.parentNode.insertBefore(dashBtn, headerHomeBtn.nextSibling);
+      }
+    }
+
+    // 3. Hide CopperFox Home & Jellyfin Enhanced from user dropdown for non-admins
+    if (!isAdmin) {
+      const popovers = document.querySelectorAll('.MuiPopover-root, .MuiMenu-root, .dialogContainer');
+      for (const pop of popovers) {
+        const items = Array.from(pop.querySelectorAll('li, a, button, [role="menuitem"]'));
+        for (const el of items) {
+          const txt = (el.textContent || "").trim();
+          if (txt === "CopperFox Home" || /jellyfin enhanced/i.test(txt)) {
+            el.style.display = "none";
+          }
+        }
+      }
+    }
+  }

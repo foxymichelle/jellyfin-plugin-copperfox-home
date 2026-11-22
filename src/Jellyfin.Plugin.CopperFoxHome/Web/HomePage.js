@@ -842,10 +842,37 @@
     }
   }
 
-  function injectUserMenuLink() {
-    if (document.getElementById("cfHomeUserMenuLink")) return;
+  let cfIsAdminCache = null;
+  async function checkIsAdmin() {
+    if (cfIsAdminCache !== null) return cfIsAdminCache;
+    try {
+      const user = await ApiClient.getCurrentUser();
+      cfIsAdminCache = !!(user && user.Policy && user.Policy.IsAdministrator);
+      return cfIsAdminCache;
+    } catch {
+      return false;
+    }
+  }
 
+  async function injectUserMenuLink() {
+    const isAdmin = await checkIsAdmin();
     const popovers = document.querySelectorAll('.MuiPopover-root, .MuiMenu-root, .dialogContainer');
+
+    // Hide plugin links (CopperFox Home & Jellyfin Enhanced) for non-admin users
+    if (!isAdmin) {
+      for (const pop of popovers) {
+        const items = Array.from(pop.querySelectorAll('li, a, button, [role="menuitem"]'));
+        for (const el of items) {
+          const txt = (el.textContent || "").trim();
+          if (txt === "CopperFox Home" || /jellyfin enhanced/i.test(txt)) {
+            el.style.display = "none";
+          }
+        }
+      }
+      return;
+    }
+
+    if (document.getElementById("cfHomeUserMenuLink")) return;
     for (const pop of popovers) {
       const items = Array.from(pop.querySelectorAll('li, a, button, [role="menuitem"]'));
       const settingsItem = items.find(el => el.textContent && el.textContent.trim() === "Settings");

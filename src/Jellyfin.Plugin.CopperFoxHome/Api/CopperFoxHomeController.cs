@@ -71,6 +71,32 @@ public class CopperFoxHomeController : ControllerBase
 
         return Content(sb.ToString(), "application/javascript");
     }
+    [HttpGet("Logo")]
+    [AllowAnonymous]
+    public ActionResult GetCustomLogo()
+    {
+        var assembly = typeof(Plugin).Assembly;
+        var resourceName = assembly.GetManifestResourceNames()
+            .FirstOrDefault(n => n.EndsWith("logo.png", StringComparison.OrdinalIgnoreCase)
+                              || n.EndsWith("logo.svg", StringComparison.OrdinalIgnoreCase));
+
+        if (resourceName == null)
+        {
+            return NotFound();
+        }
+
+        var stream = assembly.GetManifestResourceStream(resourceName);
+        if (stream == null)
+        {
+            return NotFound();
+        }
+
+        var contentType = resourceName.EndsWith(".svg", StringComparison.OrdinalIgnoreCase)
+            ? "image/svg+xml"
+            : "image/png";
+        return File(stream, contentType);
+    }
+
     [HttpPost("ClearSliderCache")]
     [AllowAnonymous]
     public ActionResult ClearSliderCache([FromQuery] string? scope = null)
