@@ -75,40 +75,32 @@
   // ==========================================================================
   // 2. BATCH ITEM METADATA LOOKUP (PATH, GENRES, USERDATA)
   // ==========================================================================
-  async function ensureItemsCached(ids) {
-    const cleanIds = [...new Set(ids.map(id => String(id || "").replace(/-/g, "")).filter(Boolean))];
-    const missing = cleanIds.filter(id => !cfItemMetaCache.has(id));
-    if (missing.length === 0) return;
+    const existingDash = document.getElementById("cfHeaderDashboardBtn");
+    if (cfAdminStatus === false) {
+      if (existingDash) existingDash.remove();
+    } else if (cfAdminStatus === true && (!existingDash || !document.body.contains(existingDash))) {
+      if (existingDash) existingDash.remove();
+      const headerLinks = Array.from(document.querySelectorAll("header a, header button, .skinHeader a, .skinHeader button, [role='tab']"));
+      const favTab = headerLinks.find(el => (el.textContent || "").trim() === "Favorites");
 
-    const uid = ApiClient.getCurrentUserId();
-    for (let i = 0; i < missing.length; i += 100) {
-      const chunk = missing.slice(i, i + 100);
-      try {
-        const res = await ApiClient.getItems(uid, {
-          Ids: chunk.join(","),
-          Fields: "Path,Genres"
-        });
-        for (const item of (res.Items || [])) {
-          const normId = (item.Id || "").replace(/-/g, "");
-          const pathNorm = (item.Path || "").replace(/\\/g, "/");
-          const isDiscover = /\/discover(\/|$)/i.test(pathNorm);
-          const genres = (item.Genres || []).map(g => g.toLowerCase());
-          const ud = item.UserData || {};
-          const entry = {
-            isDiscover,
-            genres,
-            played: !!ud.Played,
-            inProgress: !ud.Played && (ud.PlaybackPositionTicks || 0) > 0,
-            isFavorite: !!ud.IsFavorite
-          };
-          cfItemMetaCache.set(normId, entry);
-          cfItemMetaCache.set(item.Id, entry);
-        }
-      } catch (err) {
-        console.warn("CopperFox Pages metadata fetch failed:", err);
+      if (favTab) {
+        const tabsRoot = favTab.closest(".MuiTabs-root") || favTab.parentNode;
+        const dashBtn = document.createElement("button");
+        dashBtn.id = "cfHeaderDashboardBtn";
+        dashBtn.type = "button";
+        dashBtn.textContent = "Dashboard";
+        dashBtn.style.cssText =
+          "background:transparent;border:none;color:rgba(255,255,255,0.75);font-family:inherit;font-size:15px;font-weight:500;cursor:pointer;padding:8px 14px;margin-right:4px;white-space:nowrap;transition:color 0.15s ease;";
+        dashBtn.onmouseenter = () => { dashBtn.style.color = "#ffffff"; };
+        dashBtn.onmouseleave = () => { dashBtn.style.color = "rgba(255,255,255,0.75)"; };
+        dashBtn.onclick = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          window.location.hash = "#/dashboard";
+        };
+        tabsRoot.parentNode.insertBefore(dashBtn, tabsRoot);
       }
     }
-  }
 
   // ==========================================================================
   // 3. ITEM DETAIL PAGE: DISCOVER TOOLBAR + HIDE DISCOVER IN "MORE LIKE THIS"
@@ -383,19 +375,27 @@
   // 6. HEADER & DASHBOARD SIDEBAR LOGO SWAP + ADMIN "DASHBOARD" LINK
   // ==========================================================================
   let cfAdminStatus = null;
-  let cfAdminPromise = null;
+  let cfAdminInFlight = false;
 
   function resolveAdminStatus() {
-    if (cfAdminStatus !== null) return Promise.resolve(cfAdminStatus);
-    if (!cfAdminPromise) {
-      cfAdminPromise = ApiClient.getCurrentUser()
-        .then(user => {
-          cfAdminStatus = !!(user && user.Policy && user.Policy.IsAdministrator);
-          return cfAdminStatus;
-        })
-        .catch(() => false);
+    if (cfAdminStatus === true) return Promise.resolve(true);
+    if (cfAdminInFlight) return Promise.resolve(cfAdminStatus);
+    if (!window.ApiClient || !ApiClient.getCurrentUserId || !ApiClient.getCurrentUserId()) {
+      return Promise.resolve(null);
     }
-    return cfAdminPromise;
+    cfAdminInFlight = true;
+    return ApiClient.getCurrentUser()
+      .then(user => {
+        cfAdminInFlight = false;
+        if (user && user.Policy) {
+          cfAdminStatus = !!user.Policy.IsAdministrator;
+        }
+        return cfAdminStatus;
+      })
+      .catch(() => {
+        cfAdminInFlight = false;
+        return null;
+      });
   }
 
   function syncHeaderAndLogosNow() {

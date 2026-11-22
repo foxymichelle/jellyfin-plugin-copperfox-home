@@ -100,9 +100,10 @@
       ? `<div class="cf-badge-tr">S${item.ParentIndexNumber}:E${item.IndexNumber}</div>`
       : "";
 
+    const posTicks = (item.UserData && item.UserData.PlaybackPositionTicks > 0) ? item.UserData.PlaybackPositionTicks : 0;
     let progressBarHtml = "";
-    if (item.UserData && item.UserData.PlaybackPositionTicks > 0 && item.RunTimeTicks > 0) {
-      const pct = Math.min(99, Math.max(2, Math.round((item.UserData.PlaybackPositionTicks / item.RunTimeTicks) * 100)));
+    if (posTicks > 0 && item.RunTimeTicks > 0) {
+      const pct = Math.min(99, Math.max(2, Math.round((posTicks / item.RunTimeTicks) * 100)));
       progressBarHtml = `<div class="cf-progress-track"><div class="cf-progress-fill" style="width:${pct}%;"></div></div>`;
     }
 
@@ -135,8 +136,7 @@
     const prefixAttr = item.Name ? ` data-prefix="${String(item.Name).substring(0, 3).toUpperCase().replace(/"/g, "&quot;")}"` : "";
 
     return `
-      <div class="card ${isThumb ? "backdropCard" : "portraitCard"} card-hoverable card-withuserdata cf-item-card" data-index="0" data-isfolder="${isFolder}" data-serverid="${serverId}" data-id="${playTargetId}" data-item-id="${item.Id}" data-type="${item.Type || ""}" data-mediatype="${item.MediaType || "Video"}"${pathAttr} data-context="home"${prefixAttr} style="width:${cardWidth};min-width:${cardWidth};flex:0 0 auto;">
-        <div class="cardBox">
+      <div class="card ${isThumb ? "backdropCard" : "portraitCard"} card-hoverable card-withuserdata cf-item-card" data-index="0" data-isfolder="${isFolder}" data-serverid="${serverId}" data-id="${playTargetId}" data-item-id="${item.Id}" data-type="${item.Type || ""}" data-mediatype="${item.MediaType || "Video"}" data-positionticks="${posTicks}"${pathAttr} data-context="home"${prefixAttr} style="width:${cardWidth};min-width:${cardWidth};flex:0 0 auto;">        <div class="cardBox">
           <div class="cardScalable">
             <div class="cardPadder ${padderClass}"></div>
             <a href="${fullHref}" aria-label="${itemNameEscaped}" class="cardImageContainer coveredImage cardContent itemAction" data-action="link" style="background-image:url('${imgUrl}');"></a>
@@ -172,30 +172,34 @@
           const srvId = playBtn.getAttribute("data-serverid") || ApiClient.serverId();
           const itemType = card.getAttribute("data-type") || "Movie";
           const mediaType = card.getAttribute("data-mediatype") || "Video";
+          const startPos = parseInt(card.getAttribute("data-positionticks") || "0", 10) || 0;
 
           if (window.playbackManager && typeof window.playbackManager.play === "function") {
-            window.playbackManager.play({ ids: [playId], serverId: srvId });
+            window.playbackManager.play({
+              ids: [playId],
+              serverId: srvId,
+              startPositionTicks: startPos
+            });
             return;
           }
 
-          // Delegate through Jellyfin's native itemsContainer card action listener
-          let nativeContainer = document.querySelector(".itemsContainer");
-          let tempContainer = null;
-          if (!nativeContainer) {
-            tempContainer = document.createElement("div");
-            tempContainer.className = "itemsContainer";
-            tempContainer.style.display = "none";
-            document.body.appendChild(tempContainer);
-            nativeContainer = tempContainer;
-          }
+          const nativeContainer = document.querySelector(".itemsContainer");
+          if (!nativeContainer) return;
+
+          const scroller = nativeContainer.closest(".emby-scroller");
+          const savedScroll = scroller ? scroller.scrollLeft : 0;
 
           const proxyCard = document.createElement("div");
           proxyCard.className = "card";
+          proxyCard.style.cssText = "position:fixed;left:0;top:0;width:1px;height:1px;opacity:0;pointer-events:none;";
           proxyCard.setAttribute("data-id", playId);
           proxyCard.setAttribute("data-serverid", srvId);
           proxyCard.setAttribute("data-type", itemType);
           proxyCard.setAttribute("data-mediatype", mediaType);
           proxyCard.setAttribute("data-isfolder", "false");
+          if (startPos > 0) {
+            proxyCard.setAttribute("data-positionticks", String(startPos));
+          }
 
           const proxyBtn = document.createElement("button");
           proxyBtn.type = "button";
@@ -206,7 +210,11 @@
 
           proxyBtn.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
           proxyCard.remove();
-          if (tempContainer) tempContainer.remove();
+
+          if (scroller) {
+            scroller.scrollLeft = savedScroll;
+            requestAnimationFrame(() => { scroller.scrollLeft = savedScroll; });
+          }
           return;
         }
 
