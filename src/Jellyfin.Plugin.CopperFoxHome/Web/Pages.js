@@ -404,31 +404,36 @@
       }
     }
 
-    // 2. Insert "Dashboard" button in header right after logo/title (before Favorites/Libraries) for admins
+    // 2. Insert "Dashboard" button in header right before "Favorites" (after logo/name) for admins
     const existingDash = document.getElementById("cfHeaderDashboardBtn");
     if (!isAdmin) {
       if (existingDash) existingDash.remove();
     } else if (!existingDash) {
-      // Find the home/logo button in the top header bar
-      const headerHomeBtn =
-        document.querySelector(".skinHeader .headerHomeButton") ||
-        document.querySelector("header a[href*='#/home'], header button:has(img)");
+      const headerLinks = Array.from(document.querySelectorAll("header a, header button, .skinHeader a, .skinHeader button"));
+      const favTab = headerLinks.find(el => (el.textContent || "").trim() === "Favorites");
 
-      if (headerHomeBtn && headerHomeBtn.parentNode) {
-        const dashBtn = document.createElement("button");
+      if (favTab && favTab.parentNode) {
+        const dashBtn = favTab.cloneNode(true);
         dashBtn.id = "cfHeaderDashboardBtn";
-        dashBtn.type = "button";
-        dashBtn.textContent = "Dashboard";
-        dashBtn.style.cssText =
-          "background:transparent;border:none;color:inherit;font:inherit;font-size:15px;font-weight:500;cursor:pointer;padding:6px 12px;margin-left:8px;opacity:0.85;transition:opacity 0.15s,color 0.15s;";
-        dashBtn.onmouseenter = () => { dashBtn.style.opacity = "1"; dashBtn.style.color = "#a85c32"; };
-        dashBtn.onmouseleave = () => { dashBtn.style.opacity = "0.85"; dashBtn.style.color = "inherit"; };
+        if (dashBtn.tagName === "A") {
+          dashBtn.setAttribute("href", "#/dashboard");
+        }
+        const textEl = Array.from(dashBtn.querySelectorAll("*")).find(
+          el => el.children.length === 0 && (el.textContent || "").trim() === "Favorites"
+        );
+        if (textEl) {
+          textEl.textContent = "Dashboard";
+        } else {
+          dashBtn.textContent = "Dashboard";
+        }
+        dashBtn.classList.remove("Mui-selected", "emby-tab-button-active");
+        dashBtn.setAttribute("aria-selected", "false");
         dashBtn.onclick = (e) => {
           e.preventDefault();
           e.stopPropagation();
           window.location.hash = "#/dashboard";
         };
-        headerHomeBtn.parentNode.insertBefore(dashBtn, headerHomeBtn.nextSibling);
+        favTab.parentNode.insertBefore(dashBtn, favTab);
       }
     }
 

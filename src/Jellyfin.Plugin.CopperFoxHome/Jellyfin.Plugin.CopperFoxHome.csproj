@@ -18,6 +18,7 @@
     <EmbeddedResource Include="Web\HomePage.js" />
     <EmbeddedResource Include="Web\Pages.js" />
     <EmbeddedResource Include="Web\Styles.js" />
+    <EmbeddedResource Include="Web\logo.png" />
   </ItemGroup>
 
 </Project>

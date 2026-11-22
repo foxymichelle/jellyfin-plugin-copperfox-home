@@ -77,8 +77,7 @@ public class CopperFoxHomeController : ControllerBase
     {
         var assembly = typeof(Plugin).Assembly;
         var resourceName = assembly.GetManifestResourceNames()
-            .FirstOrDefault(n => n.EndsWith("logo.png", StringComparison.OrdinalIgnoreCase)
-                              || n.EndsWith("logo.svg", StringComparison.OrdinalIgnoreCase));
+            .FirstOrDefault(n => n.EndsWith("logo.png", StringComparison.OrdinalIgnoreCase));
 
         if (resourceName == null)
         {
@@ -91,12 +90,8 @@ public class CopperFoxHomeController : ControllerBase
             return NotFound();
         }
 
-        var contentType = resourceName.EndsWith(".svg", StringComparison.OrdinalIgnoreCase)
-            ? "image/svg+xml"
-            : "image/png";
-        return File(stream, contentType);
+        return File(stream, "image/png");
     }
-
     [HttpPost("ClearSliderCache")]
     [AllowAnonymous]
     public ActionResult ClearSliderCache([FromQuery] string? scope = null)
