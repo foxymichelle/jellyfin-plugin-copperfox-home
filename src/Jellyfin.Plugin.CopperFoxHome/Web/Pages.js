@@ -365,7 +365,7 @@
   });
   observer.observe(document.body, { childList: true, subtree: true });
 
-  resolveAdminStatus().then(() => syncHeaderAndLogosNow());
+  syncHeaderAndLogosNow();
   document.addEventListener("viewshow", schedulePageUpdate);
   window.addEventListener("hashchange", schedulePageUpdate);
   setTimeout(schedulePageUpdate, 600);

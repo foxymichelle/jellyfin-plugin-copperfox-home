@@ -183,14 +183,13 @@
             return;
           }
 
-          let nativeContainer = document.querySelector(".itemsContainer");
-          let tempContainer = null;
-          if (!nativeContainer) {
-            tempContainer = document.createElement("div");
-            tempContainer.className = "itemsContainer";
-            tempContainer.style.display = "none";
-            document.body.appendChild(tempContainer);
-            nativeContainer = tempContainer;
+          let bridgeContainer = document.getElementById("cfActionBridge");
+          if (!bridgeContainer) {
+            bridgeContainer = document.createElement("div", { is: "emby-itemscontainer" });
+            bridgeContainer.id = "cfActionBridge";
+            bridgeContainer.className = "itemsContainer";
+            bridgeContainer.style.cssText = "position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none;";
+            document.body.appendChild(bridgeContainer);
           }
 
           const proxyCard = document.createElement("div");
@@ -209,13 +208,13 @@
           proxyBtn.className = "itemAction";
           proxyBtn.setAttribute("data-action", "resume");
           proxyCard.appendChild(proxyBtn);
-          nativeContainer.appendChild(proxyCard);
+          bridgeContainer.appendChild(proxyCard);
 
-          proxyBtn.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
-          proxyCard.remove();
-          if (tempContainer) tempContainer.remove();
+          setTimeout(() => {
+            proxyBtn.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
+            proxyCard.remove();
+          }, 0);
           return;
-        }
 
         const playedBtn = e.target.closest(".cf-btn-played");
         if (playedBtn) {
