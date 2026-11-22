@@ -126,8 +126,8 @@
     const meta = cfItemMetaCache.get(detailId.replace(/-/g, ""));
     detailPage.classList.toggle("cf-discover-detail", !!(meta && meta.isDiscover));
 
-    // Remove Discover items from "More Like This" (and any similar rows on detail page)
-    const sectionCards = Array.from(detailPage.querySelectorAll(".similarSection .card[data-id], .detailSection .card[data-id]"));
+    // Remove Discover items from "More Like This" (including Jellyfin Enhanced rows)
+    const sectionCards = Array.from(detailPage.querySelectorAll(".card[data-id]"));
     if (sectionCards.length === 0) return;
 
     const ids = sectionCards.map(c => c.getAttribute("data-id")).filter(Boolean);
@@ -232,9 +232,22 @@
     const bar = document.createElement("div");
     bar.className = "cf-filter-bar";
 
-    // Row 1: Status (single-select) + Offset Favorites toggle
+    // Row 1: Favorites first (offset to the left) + Status (single-select)
     const topRow = document.createElement("div");
-    topRow.className = "cf-filter-row";
+    topRow.className = "cf-filter-row cf-filter-status-row";
+
+    const favWrap = document.createElement("div");
+    favWrap.style.marginRight = "24px";
+    const favBtn = document.createElement("button");
+    favBtn.type = "button";
+    favBtn.className = "cf-pill-btn";
+    favBtn.textContent = "Favorites";
+    favBtn.onclick = () => {
+      filterState.favorite = !filterState.favorite;
+      favBtn.classList.toggle("active", filterState.favorite);
+      applyLibraryGridFilters(pageEl);
+    };
+    favWrap.appendChild(favBtn);
 
     const statusGroup = document.createElement("div");
     statusGroup.className = "cf-filter-group";
@@ -262,21 +275,8 @@
       statusGroup.appendChild(btn);
     });
 
-    const favWrap = document.createElement("div");
-    favWrap.className = "cf-filter-fav-wrap";
-    const favBtn = document.createElement("button");
-    favBtn.type = "button";
-    favBtn.className = "cf-pill-btn";
-    favBtn.textContent = "Favorites";
-    favBtn.onclick = () => {
-      filterState.favorite = !filterState.favorite;
-      favBtn.classList.toggle("active", filterState.favorite);
-      applyLibraryGridFilters(pageEl);
-    };
-    favWrap.appendChild(favBtn);
-
-    topRow.appendChild(statusGroup);
     topRow.appendChild(favWrap);
+    topRow.appendChild(statusGroup);
 
     // Row 2: Multi-select Genres
     const genreRow = document.createElement("div");
@@ -332,6 +332,22 @@
       const bar = buildFilterBar(activePage);
       const anchor = grid.closest(".padded-left") || grid;
       anchor.parentNode.insertBefore(bar, anchor);
+
+      const parentMatch = hash.match(/[?&](?:topParentId|parentId)=([^&]+)/i);
+      const folderId = parentMatch ? parentMatch[1] : null;
+      const headerTitle = (activePage.querySelector(".pageTitle, h1")?.textContent || "").trim().toLowerCase();
+      if (headerTitle === "discover") {
+        const statusRow = bar.querySelector(".cf-filter-status-row");
+        if (statusRow) statusRow.style.display = "none";
+      } else if (folderId) {
+        ensureItemsCached([folderId]).then(() => {
+          const fMeta = cfItemMetaCache.get(folderId.replace(/-/g, ""));
+          if (fMeta && fMeta.isDiscover) {
+            const statusRow = bar.querySelector(".cf-filter-status-row");
+            if (statusRow) statusRow.style.display = "none";
+          }
+        });
+      }
     }
 
     applyLibraryGridFilters(activePage);

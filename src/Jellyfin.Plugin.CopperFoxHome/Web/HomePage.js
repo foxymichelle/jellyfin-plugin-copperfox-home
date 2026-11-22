@@ -272,23 +272,33 @@
         menu.style.cssText = `position:fixed;top:${Math.min(e.clientY, window.innerHeight - 140)}px;left:${Math.min(e.clientX, window.innerWidth - 200)}px;background:#202020;border:1px solid #444;border-radius:6px;padding:6px 0;z-index:99999;min-width:180px;box-shadow:0 8px 24px rgba(0,0,0,0.8);`;
 
         const triggerNativeAction = (action) => {
-          const tempContainer = document.createElement("div");
-          tempContainer.className = "itemsContainer";
-          tempContainer.style.cssText = "position:fixed;left:-9999px;top:-9999px;visibility:hidden;";
+          const nativeContainer = document.querySelector(".itemsContainer");
+          if (!nativeContainer) return;
+
+          const scroller = nativeContainer.closest(".emby-scroller");
+          const savedScroll = scroller ? scroller.scrollLeft : 0;
+
           const proxyCard = document.createElement("div");
           proxyCard.className = "card";
+          proxyCard.style.cssText = "position:fixed;left:0;top:0;width:1px;height:1px;opacity:0;pointer-events:none;";
           proxyCard.setAttribute("data-id", itemId);
           proxyCard.setAttribute("data-serverid", srvId);
           proxyCard.setAttribute("data-type", itemType);
+
           const proxyBtn = document.createElement("button");
           proxyBtn.type = "button";
           proxyBtn.className = "itemAction";
           proxyBtn.setAttribute("data-action", action);
           proxyCard.appendChild(proxyBtn);
-          tempContainer.appendChild(proxyCard);
-          document.body.appendChild(tempContainer);
+          nativeContainer.appendChild(proxyCard);
+
           proxyBtn.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
-          tempContainer.remove();
+          proxyCard.remove();
+
+          if (scroller) {
+            scroller.scrollLeft = savedScroll;
+            requestAnimationFrame(() => { scroller.scrollLeft = savedScroll; });
+          }
         };
 
         const options = [
